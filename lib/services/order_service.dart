@@ -91,17 +91,30 @@ class OrderService {
     return _cloneList(orders);
   }
 
-  Future<int> updateOrderStatus(int orderId, String newStatus) async {
-    await SupabaseConfig.client
+  Future<int> updateOrderStatus(
+    int orderId,
+    String newStatus, {
+    int? sellerId,
+  }) async {
+    final updateQuery = SupabaseConfig.client
         .from('orders')
         .update({'status': newStatus})
         .eq('id', orderId);
 
-    final order = await SupabaseConfig.client
+    if (sellerId != null) {
+      await updateQuery.eq('seller_id', sellerId);
+    } else {
+      await updateQuery;
+    }
+
+    final selectQuery = SupabaseConfig.client
         .from('orders')
         .select('buyer_id, seller_id')
-        .eq('id', orderId)
-        .maybeSingle();
+        .eq('id', orderId);
+
+    final order = sellerId != null
+        ? await selectQuery.eq('seller_id', sellerId).maybeSingle()
+        : await selectQuery.maybeSingle();
     if (order != null) {
       await NotificationService().createNotification(
         userId: order['buyer_id'] as int,

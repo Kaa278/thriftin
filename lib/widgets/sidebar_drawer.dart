@@ -122,6 +122,14 @@ class _SidebarDrawerState extends State<SidebarDrawer> {
               },
             ),
             _buildMenuItem(
+              icon: Icons.storefront_outlined,
+              label: 'Penjualan Saya',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/sales');
+              },
+            ),
+            _buildMenuItem(
               icon: Icons.account_balance_wallet_outlined,
               label: 'Metode Pembayaran',
               onTap: () {

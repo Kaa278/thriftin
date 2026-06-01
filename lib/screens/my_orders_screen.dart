@@ -6,7 +6,9 @@ import '../services/review_service.dart';
 import '../widgets/skeleton_loaders.dart';
 
 class MyOrdersScreen extends StatefulWidget {
-  const MyOrdersScreen({super.key});
+  final bool sellerMode;
+
+  const MyOrdersScreen({super.key, this.sellerMode = false});
 
   @override
   State<MyOrdersScreen> createState() => _MyOrdersScreenState();
@@ -32,18 +34,23 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
   Future<void> _loadOrders({bool forceRefresh = false}) async {
     setState(() => _isLoading = true);
     try {
-      final buyerId = UserService.currentUserId;
-      if (buyerId == null) {
+      final userId = UserService.currentUserId;
+      if (userId == null) {
         setState(() {
           _orders = [];
           _isLoading = false;
         });
         return;
       }
-      final orders = await _orderService.getOrdersByBuyer(
-        buyerId,
-        forceRefresh: forceRefresh,
-      );
+      final orders = widget.sellerMode
+          ? await _orderService.getOrdersBySeller(
+              userId,
+              forceRefresh: forceRefresh,
+            )
+          : await _orderService.getOrdersByBuyer(
+              userId,
+              forceRefresh: forceRefresh,
+            );
       setState(() {
         _orders = orders;
         _isLoading = false;
@@ -200,6 +207,107 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
     }
   }
 
+  Future<void> _updateSellerOrderStatus(int orderId, String status) async {
+    final sellerId = UserService.currentUserId;
+    if (sellerId == null) {
+      _showCustomSnackbar(
+        'Silakan login ulang untuk mengubah status',
+        AppColors.error,
+      );
+      return;
+    }
+
+    try {
+      await _orderService.updateOrderStatus(
+        orderId,
+        status,
+        sellerId: sellerId,
+      );
+      if (!mounted) return;
+      _showCustomSnackbar(
+        'Status penjualan diubah menjadi $status',
+        AppColors.success,
+      );
+      _loadOrders(forceRefresh: true);
+    } catch (e) {
+      _showCustomSnackbar('Gagal mengubah status: $e', AppColors.error);
+    }
+  }
+
+  void _showStatusPickerBottomSheet(Map<String, dynamic> order) {
+    final orderId = int.tryParse(order['id']?.toString() ?? '');
+    if (orderId == null) return;
+
+    final currentStatus = order['status']?.toString() ?? 'Menunggu';
+    final statuses = ['Menunggu', 'Diproses', 'Dikirim'];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Align(
+                alignment: Alignment.center,
+                child: Container(
+                  width: 48,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.grey300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Ubah Status Penjualan',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...statuses.map((status) {
+                final selected = status == currentStatus;
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    selected
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    color: selected ? AppColors.primary : AppColors.grey400,
+                  ),
+                  title: Text(
+                    status,
+                    style: TextStyle(
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                      color: selected
+                          ? AppColors.primary
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    if (!selected) _updateSellerOrderStatus(orderId, status);
+                  },
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   List<Map<String, dynamic>> _getFilteredOrders(String status) {
     if (status == 'Semua') return _orders;
     return _orders.where((o) => o['status'] == status).toList();
@@ -268,9 +376,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
           icon: const Icon(Icons.arrow_back_rounded, color: AppColors.primary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Pesanan Saya',
-          style: TextStyle(
+        title: Text(
+          widget.sellerMode ? 'Penjualan Saya' : 'Pesanan Saya',
+          style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
             color: AppColors.primary,
@@ -363,7 +471,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
             ),
             const SizedBox(height: 24),
             Text(
-              'Belum ada pesanan',
+              widget.sellerMode ? 'Belum ada penjualan' : 'Belum ada pesanan',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -373,7 +481,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
             const SizedBox(height: 8),
             Text(
               tabName == 'Semua'
-                  ? 'Anda belum memiliki transaksi pembelian apapun di Thriftin.'
+                  ? widget.sellerMode
+                        ? 'Belum ada order masuk untuk produk yang kamu jual.'
+                        : 'Anda belum memiliki transaksi pembelian apapun di Thriftin.'
                   : 'Tidak ada pesanan dengan status "$tabName" saat ini.',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -390,7 +500,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
 
   Widget _buildOrderCard(Map<String, dynamic> order) {
     final status = order['status'] ?? 'Menunggu';
-    final sellerName = order['seller_name'] ?? 'Toko Thrift';
+    final partyName = widget.sellerMode
+        ? order['buyer_name'] ?? 'Pembeli Thriftin'
+        : order['seller_name'] ?? 'Toko Thrift';
     final productName = order['product_name'] ?? 'Produk';
     final productImg = order['product_image'] ?? '';
     final totalAmount = order['total_amount'] ?? 0;
@@ -420,10 +532,16 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
               children: [
                 Row(
                   children: [
-                    Icon(Icons.storefront, size: 18, color: AppColors.primary),
+                    Icon(
+                      widget.sellerMode
+                          ? Icons.person_outline
+                          : Icons.storefront,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
-                      sellerName,
+                      partyName,
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -580,7 +698,41 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
                         ),
                       ),
                     ),
-                    if (status == 'Dikirim') ...[
+                    if (widget.sellerMode && status != 'Selesai') ...[
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () => _showStatusPickerBottomSheet(order),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'Ubah Status',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ] else if (widget.sellerMode) ...[
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Pesanan selesai',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textHint,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ] else if (status == 'Dikirim') ...[
                       const SizedBox(width: 8),
                       ElevatedButton(
                         onPressed: () => _completeOrderAndReview(order),
@@ -690,14 +842,18 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    IconButton(
-                      icon: Icon(Icons.delete_outline, color: AppColors.error),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _deleteOrder(order['id'] as int);
-                      },
-                      tooltip: 'Hapus Pesanan',
-                    ),
+                    if (!widget.sellerMode)
+                      IconButton(
+                        icon: Icon(
+                          Icons.delete_outline,
+                          color: AppColors.error,
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _deleteOrder(order['id'] as int);
+                        },
+                        tooltip: 'Hapus Pesanan',
+                      ),
                   ],
                 ),
                 const SizedBox(height: 16),

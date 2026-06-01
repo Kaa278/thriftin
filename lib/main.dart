@@ -72,6 +72,7 @@ class ThriftinApp extends StatelessWidget {
         '/home': (context) => const MainScreen(),
         '/notifications': (context) => const NotificationsScreen(),
         '/orders': (context) => const MyOrdersScreen(),
+        '/sales': (context) => const MyOrdersScreen(sellerMode: true),
         '/cart': (context) => const CartScreen(),
         '/payment-methods': (context) => const PaymentMethodsScreen(),
         '/help-center': (context) => const HelpCenterScreen(),
