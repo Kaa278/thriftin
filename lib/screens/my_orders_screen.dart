@@ -92,21 +92,6 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
     );
   }
 
-  // Update order status directly in database
-  Future<void> _updateStatus(int orderId, String status) async {
-    try {
-      await _orderService.updateOrderStatus(orderId, status);
-      if (!mounted) return;
-      _showCustomSnackbar(
-        'Status pesanan berhasil diubah menjadi: $status',
-        AppColors.success,
-      );
-      _loadOrders(forceRefresh: true);
-    } catch (e) {
-      _showCustomSnackbar('Gagal mengubah status: $e', AppColors.error);
-    }
-  }
-
   // Delete an order
   Future<void> _deleteOrder(int orderId) async {
     try {
@@ -389,7 +374,6 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
 
   Widget _buildOrderCard(Map<String, dynamic> order) {
     final status = order['status'] ?? 'Menunggu';
-    final orderId = order['id'] as int;
     final sellerName = order['seller_name'] ?? 'Toko Thrift';
     final productName = order['product_name'] ?? 'Produk';
     final productImg = order['product_image'] ?? '';
@@ -580,8 +564,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
                     if (status == 'Selesai') ...[
+                      const SizedBox(width: 8),
                       OutlinedButton(
                         onPressed: () => _showReviewDialog(order),
                         style: OutlinedButton.styleFrom(
@@ -603,32 +587,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
                     ],
-                    ElevatedButton(
-                      onPressed: () =>
-                          _showStatusPickerBottomSheet(orderId, status),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        'Ubah Status',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ],
@@ -784,76 +743,6 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
           ),
         ],
       ),
-    );
-  }
-
-  void _showStatusPickerBottomSheet(int orderId, String currentStatus) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        final statuses = ['Menunggu', 'Diproses', 'Dikirim', 'Selesai'];
-        return Container(
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Align(
-                alignment: Alignment.center,
-                child: Container(
-                  width: 48,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.grey300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Ubah Status Pesanan',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ...statuses.map((s) {
-                final isSelected = s == currentStatus;
-                return ListTile(
-                  leading: Icon(
-                    isSelected
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_off,
-                    color: isSelected ? AppColors.primary : AppColors.grey400,
-                  ),
-                  title: Text(
-                    s,
-                    style: TextStyle(
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
-                      color: isSelected
-                          ? AppColors.primary
-                          : AppColors.textPrimary,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _updateStatus(orderId, s);
-                  },
-                );
-              }),
-            ],
-          ),
-        );
-      },
     );
   }
 }

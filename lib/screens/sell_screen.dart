@@ -24,6 +24,7 @@ class _SellScreenState extends State<SellScreen> {
   bool _ekspedisi = true;
   bool _instant = false;
   bool _cod = false;
+  bool _isSubmitting = false;
 
   final ImagePicker _picker = ImagePicker();
   final List<String?> _imagePaths = List.filled(5, null, growable: false);
@@ -298,149 +299,168 @@ class _SellScreenState extends State<SellScreen> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: () async {
-                  final title = _titleController.text.trim();
-                  final priceVal = _priceController.text.trim();
-                  final location = _locationController.text.trim();
+                onPressed: _isSubmitting
+                    ? null
+                    : () async {
+                        setState(() => _isSubmitting = true);
+                        try {
+                          final title = _titleController.text.trim();
+                          final priceVal = _priceController.text.trim();
+                          final location = _locationController.text.trim();
 
-                  if (title.isEmpty || priceVal.isEmpty || location.isEmpty) {
-                    _showAppSnackBar(
-                      'Judul, harga, dan lokasi harus diisi',
-                      isError: true,
-                    );
-                    return;
-                  }
+                          if (title.isEmpty ||
+                              priceVal.isEmpty ||
+                              location.isEmpty) {
+                            _showAppSnackBar(
+                              'Judul, harga, dan lokasi harus diisi',
+                              isError: true,
+                            );
+                            return;
+                          }
 
-                  if (_imagePaths[0] == null) {
-                    _showAppSnackBar(
-                      'Harap tambahkan foto barang utama',
-                      isError: true,
-                    );
-                    return;
-                  }
+                          if (_imagePaths[0] == null) {
+                            _showAppSnackBar(
+                              'Harap tambahkan foto barang utama',
+                              isError: true,
+                            );
+                            return;
+                          }
 
-                  // Format price as 'Rp X.XXX.XXX' if it's entered as raw number
-                  String formattedPrice = priceVal;
-                  if (!priceVal.startsWith('Rp')) {
-                    final numPrice = int.tryParse(
-                      priceVal.replaceAll(RegExp(r'[^0-9]'), ''),
-                    );
-                    if (numPrice != null) {
-                      final reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
-                      formattedPrice =
-                          'Rp ${numPrice.toString().replaceAllMapped(reg, (Match m) => '${m[1]}.')}';
-                    } else {
-                      formattedPrice = 'Rp $priceVal';
-                    }
-                  }
+                          // Format price as 'Rp X.XXX.XXX' if it's entered as raw number
+                          String formattedPrice = priceVal;
+                          if (!priceVal.startsWith('Rp')) {
+                            final numPrice = int.tryParse(
+                              priceVal.replaceAll(RegExp(r'[^0-9]'), ''),
+                            );
+                            if (numPrice != null) {
+                              final reg = RegExp(
+                                r'(\d{1,3})(?=(\d{3})+(?!\d))',
+                              );
+                              formattedPrice =
+                                  'Rp ${numPrice.toString().replaceAllMapped(reg, (Match m) => '${m[1]}.')}';
+                            } else {
+                              formattedPrice = 'Rp $priceVal';
+                            }
+                          }
 
-                  // Determine badge name based on condition: 0=Minus, 1=Sedikit Minus, 2=Banyak Minus
-                  String? badge;
-                  if (_selectedCondition == 0) badge = 'Minus';
-                  if (_selectedCondition == 1) badge = 'Bagus';
-                  if (_selectedCondition == 2) badge = 'Sangat Bagus';
+                          // Determine badge name based on condition: 0=Minus, 1=Sedikit Minus, 2=Banyak Minus
+                          String? badge;
+                          if (_selectedCondition == 0) badge = 'Minus';
+                          if (_selectedCondition == 1) badge = 'Bagus';
+                          if (_selectedCondition == 2) badge = 'Sangat Bagus';
 
-                  final sellerId = UserService.currentUserId ?? 1;
-                  final endTime = _selectedMethod == 1
-                      ? DateTime.now()
-                            .add(
-                              _auctionDurations[_selectedAuctionDuration]['duration']
-                                  as Duration,
-                            )
-                            .toIso8601String()
-                      : null;
+                          final sellerId = UserService.currentUserId ?? 1;
+                          final endTime = _selectedMethod == 1
+                              ? DateTime.now()
+                                    .add(
+                                      _auctionDurations[_selectedAuctionDuration]['duration']
+                                          as Duration,
+                                    )
+                                    .toIso8601String()
+                              : null;
 
-                  final navigator = Navigator.of(context);
-                  List<String> uploadedImageUrls;
-                  try {
-                    uploadedImageUrls = [];
-                    for (var i = 0; i < _imagePaths.length; i++) {
-                      final path = _imagePaths[i];
-                      if (path == null) continue;
-                      final url = await ProductService().uploadProductImage(
-                        imageFile: File(path),
-                        sellerId: sellerId,
-                        index: i,
-                      );
-                      uploadedImageUrls.add(url);
-                    }
-                  } catch (e) {
-                    if (!mounted) return;
-                    _showAppSnackBar(
-                      'Gagal mengupload foto produk: $e',
-                      isError: true,
-                    );
-                    return;
-                  }
+                          final navigator = Navigator.of(context);
+                          List<String> uploadedImageUrls;
+                          try {
+                            uploadedImageUrls = [];
+                            for (var i = 0; i < _imagePaths.length; i++) {
+                              final path = _imagePaths[i];
+                              if (path == null) continue;
+                              final url = await ProductService()
+                                  .uploadProductImage(
+                                    imageFile: File(path),
+                                    sellerId: sellerId,
+                                    index: i,
+                                  );
+                              uploadedImageUrls.add(url);
+                            }
+                          } catch (e) {
+                            if (!mounted) return;
+                            _showAppSnackBar(
+                              'Gagal mengupload foto produk: $e',
+                              isError: true,
+                            );
+                            return;
+                          }
 
-                  if (uploadedImageUrls.isEmpty) {
-                    _showAppSnackBar(
-                      'Harap tambahkan foto barang utama',
-                      isError: true,
-                    );
-                    return;
-                  }
+                          if (uploadedImageUrls.isEmpty) {
+                            _showAppSnackBar(
+                              'Harap tambahkan foto barang utama',
+                              isError: true,
+                            );
+                            return;
+                          }
 
-                  // Get current logged-in user name as store name
-                  final storeName =
-                      UserService.currentUser?['name'] ?? 'Toko Saya';
+                          // Get current logged-in user name as store name
+                          final storeName =
+                              UserService.currentUser?['name'] ?? 'Toko Saya';
 
-                  // Call product service to save
-                  final newId = await ProductService().addProduct(
-                    sellerId: sellerId,
-                    name: title,
-                    price: formattedPrice,
-                    rating: 0.0,
-                    reviewCount: 0,
-                    category: _selectedCategory ?? 'Semua',
-                    storeName: storeName,
-                    location: location,
-                    imageUrl: uploadedImageUrls.first,
-                    badge: badge,
-                    isBid: _selectedMethod == 1,
-                    endTime: endTime,
-                    description: _descController.text.trim(),
-                    imageUrls: uploadedImageUrls,
-                  );
+                          // Call product service to save
+                          final newId = await ProductService().addProduct(
+                            sellerId: sellerId,
+                            name: title,
+                            price: formattedPrice,
+                            rating: 0.0,
+                            reviewCount: 0,
+                            category: _selectedCategory ?? 'Semua',
+                            storeName: storeName,
+                            location: location,
+                            imageUrl: uploadedImageUrls.first,
+                            badge: badge,
+                            isBid: _selectedMethod == 1,
+                            endTime: endTime,
+                            description: _descController.text.trim(),
+                            imageUrls: uploadedImageUrls,
+                          );
 
-                  if (newId > 0) {
-                    if (!mounted) return;
-                    _showAppSnackBar(
-                      _selectedMethod == 1
-                          ? 'Produk lelang berhasil dipasang'
-                          : 'Iklan berhasil dipasang',
-                      icon: _selectedMethod == 1
-                          ? Icons.gavel_rounded
-                          : Icons.storefront_rounded,
-                    );
+                          if (newId > 0) {
+                            if (!mounted) return;
+                            _showAppSnackBar(
+                              _selectedMethod == 1
+                                  ? 'Produk lelang berhasil dipasang'
+                                  : 'Iklan berhasil dipasang',
+                              icon: _selectedMethod == 1
+                                  ? Icons.gavel_rounded
+                                  : Icons.storefront_rounded,
+                            );
 
-                    await Future.delayed(const Duration(milliseconds: 900));
-                    if (!mounted) return;
+                            await Future.delayed(
+                              const Duration(milliseconds: 900),
+                            );
+                            if (!mounted) return;
 
-                    // Clear inputs
-                    _titleController.clear();
-                    _priceController.clear();
-                    _descController.clear();
-                    _locationController.clear();
-                    setState(() {
-                      _selectedCategory = null;
-                      _selectedCondition = -1;
-                      _selectedMethod = 0;
-                      _selectedAuctionDuration = 2;
-                      _ekspedisi = true;
-                      _instant = false;
-                      _cod = false;
-                      _imagePaths.fillRange(0, 5, null);
-                    });
+                            // Clear inputs
+                            _titleController.clear();
+                            _priceController.clear();
+                            _descController.clear();
+                            _locationController.clear();
+                            setState(() {
+                              _selectedCategory = null;
+                              _selectedCondition = -1;
+                              _selectedMethod = 0;
+                              _selectedAuctionDuration = 2;
+                              _ekspedisi = true;
+                              _instant = false;
+                              _cod = false;
+                              _imagePaths.fillRange(0, 5, null);
+                            });
 
-                    navigator.pushNamedAndRemoveUntil(
-                      '/home',
-                      (route) => false,
-                    );
-                  } else {
-                    _showAppSnackBar('Gagal memasang iklan', isError: true);
-                  }
-                },
+                            navigator.pushNamedAndRemoveUntil(
+                              '/home',
+                              (route) => false,
+                            );
+                          } else {
+                            _showAppSnackBar(
+                              'Gagal memasang iklan',
+                              isError: true,
+                            );
+                          }
+                        } finally {
+                          if (mounted) {
+                            setState(() => _isSubmitting = false);
+                          }
+                        }
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -449,20 +469,42 @@ class _SellScreenState extends State<SellScreen> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Pasang Iklan',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                child: _isSubmitting
+                    ? const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.4,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            'Mengupload...',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Pasang Iklan',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.arrow_forward_rounded, size: 18),
+                        ],
                       ),
-                    ),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_rounded, size: 18),
-                  ],
-                ),
               ),
             ),
             const SizedBox(height: 24),
