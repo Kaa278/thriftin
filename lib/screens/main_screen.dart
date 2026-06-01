@@ -15,6 +15,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  int _chatRefreshVersion = 0;
   late final List<Widget?> _pages;
 
   @override
@@ -33,7 +34,7 @@ class _MainScreenState extends State<MainScreen> {
       case 2:
         return const SellScreen();
       case 3:
-        return const ChatListScreen();
+        return ChatListScreen(key: ValueKey(_chatRefreshVersion));
       case 4:
         return const ProfileScreen();
       default:
@@ -42,7 +43,10 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _selectTab(int index) {
-    if (_pages[index] == null) {
+    if (index == 3) {
+      _chatRefreshVersion += 1;
+      _pages[index] = _buildPage(index);
+    } else if (_pages[index] == null) {
       _pages[index] = _buildPage(index);
     }
     setState(() => _currentIndex = index);

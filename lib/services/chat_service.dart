@@ -25,13 +25,16 @@ class ChatService {
       return _mapRoom(existing);
     }
 
+    final now = DateTime.now().toIso8601String();
     final room = await SupabaseConfig.client
         .from('chat_rooms')
         .insert({
           'product_id': productId,
           'buyer_id': buyerId,
           'seller_id': sellerId,
-          'created_at': DateTime.now().toIso8601String(),
+          'last_message': 'Mulai percakapan',
+          'last_message_at': now,
+          'created_at': now,
         })
         .select(
           '*, products(name, imageUrl, price, seller_id, storeName), '
