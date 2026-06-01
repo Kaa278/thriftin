@@ -578,6 +578,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               height: 1.2,
             ),
           ),
+          const SizedBox(height: 8),
+          _buildProductRatingMeta(item),
           const SizedBox(height: 14),
           _buildPriceSection(item),
           const SizedBox(height: 16),
@@ -709,6 +711,39 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildProductRatingMeta(Map<String, dynamic> item) {
+    final rating = double.tryParse(item['rating']?.toString() ?? '') ?? 0;
+    final reviewCount =
+        int.tryParse(item['reviewCount']?.toString() ?? '') ?? 0;
+    final hasRating = rating > 0 && reviewCount > 0;
+
+    if (!hasRating) {
+      return const Text(
+        'Belum ada rating produk',
+        style: TextStyle(
+          fontSize: 12,
+          color: AppColors.textHint,
+          fontWeight: FontWeight.w700,
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        const Icon(Icons.star_rounded, size: 16, color: Color(0xFFFFB800)),
+        const SizedBox(width: 4),
+        Text(
+          '${rating.toStringAsFixed(1)} ($reviewCount ulasan)',
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 

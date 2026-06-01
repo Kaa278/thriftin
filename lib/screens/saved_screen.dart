@@ -79,6 +79,39 @@ class _SavedScreenState extends State<SavedScreen>
     return 'Rp $formatted';
   }
 
+  Widget _buildRatingMeta(Map<String, dynamic> item) {
+    final rating = double.tryParse(item['rating']?.toString() ?? '') ?? 0;
+    final reviewCount =
+        int.tryParse(item['reviewCount']?.toString() ?? '') ?? 0;
+    final hasRating = rating > 0 && reviewCount > 0;
+
+    if (!hasRating) {
+      return const Text(
+        'Belum ada rating',
+        style: TextStyle(
+          fontSize: 9.5,
+          color: AppColors.textHint,
+          fontWeight: FontWeight.w700,
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        const Icon(Icons.star_rounded, size: 12, color: Color(0xFFFFB800)),
+        const SizedBox(width: 2),
+        Text(
+          '${rating.toStringAsFixed(1)} ($reviewCount)',
+          style: const TextStyle(
+            fontSize: 9.5,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -323,33 +356,7 @@ class _SavedScreenState extends State<SavedScreen>
                   // Detail produk
                   Padding(
                     padding: const EdgeInsets.fromLTRB(6, 3, 6, 0),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.star_rounded,
-                          size: 12,
-                          color: Color(0xFFFFB800),
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          _text(item['rating'], '4.8'),
-                          style: const TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          '(${_text(item['reviewCount'], '15')})',
-                          style: const TextStyle(
-                            fontSize: 9.5,
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
+                    child: _buildRatingMeta(item),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(6, 1, 6, 0),

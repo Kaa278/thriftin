@@ -590,6 +590,43 @@ class _SearchScreenState extends State<SearchScreen> {
     return text.isEmpty ? fallback : text;
   }
 
+  Widget _buildRatingMeta(Map<String, dynamic> item, {double fontSize = 9.5}) {
+    final rating = double.tryParse(item['rating']?.toString() ?? '') ?? 0;
+    final reviewCount =
+        int.tryParse(item['reviewCount']?.toString() ?? '') ?? 0;
+    final hasRating = rating > 0 && reviewCount > 0;
+
+    if (!hasRating) {
+      return Text(
+        'Belum ada rating',
+        style: TextStyle(
+          fontSize: fontSize,
+          color: AppColors.textHint,
+          fontWeight: FontWeight.w700,
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        Icon(
+          Icons.star_rounded,
+          size: fontSize + 2.5,
+          color: const Color(0xFFFFB800),
+        ),
+        const SizedBox(width: 2),
+        Text(
+          '${rating.toStringAsFixed(1)} ($reviewCount)',
+          style: TextStyle(
+            fontSize: fontSize,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
   bool _isBidItem(Map<String, dynamic> item) {
     return item['isBid'] == 1 ||
         item['isBid'] == true ||
@@ -1060,33 +1097,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(6, 3, 6, 0),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.star_rounded,
-                  size: 12,
-                  color: Color(0xFFFFB800),
-                ),
-                const SizedBox(width: 2),
-                Text(
-                  _text(item['rating'], '4.8'),
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(width: 2),
-                Text(
-                  '(${_text(item['reviewCount'], '15')})',
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+            child: _buildRatingMeta(item),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(6, 1, 6, 0),
@@ -1260,24 +1271,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(10, 5, 10, 0),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.star_rounded,
-                  size: 13,
-                  color: Color(0xFFFFB800),
-                ),
-                const SizedBox(width: 3),
-                Text(
-                  '${_text(item['rating'], '4.8')} (${_text(item['reviewCount'], '0')})',
-                  style: const TextStyle(
-                    fontSize: 10.5,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
+            child: _buildRatingMeta(item, fontSize: 10.5),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
