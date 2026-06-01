@@ -141,7 +141,7 @@ class _ChatScreenState extends State<ChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        _scrollController.position.minScrollExtent,
         duration: const Duration(milliseconds: 240),
         curve: Curves.easeOut,
       );
@@ -307,10 +307,11 @@ class _ChatScreenState extends State<ChatScreen> {
                   )
                 : ListView.builder(
                     controller: _scrollController,
+                    reverse: true,
                     padding: const EdgeInsets.all(16),
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
-                      final msg = _messages[index];
+                      final msg = _messages[_messages.length - 1 - index];
                       final isMine =
                           msg['sender_id'] == UserService.currentUserId;
                       final offerAmount = msg['offer_amount'];
