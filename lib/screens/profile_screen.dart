@@ -7,7 +7,6 @@ import 'notifications_screen.dart';
 import 'product_detail_screen.dart';
 import '../services/user_service.dart';
 import '../services/product_service.dart';
-import 'complete_profile_screen.dart';
 import 'settings_screen.dart';
 import 'saved_screen.dart';
 import 'cart_screen.dart';
@@ -411,49 +410,26 @@ class _ProfileScreenState extends State<ProfileScreen>
       decoration: const BoxDecoration(color: Color(0xFFEAF8F6)),
       child: Column(
         children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 82,
-                height: 82,
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+          Container(
+            width: 82,
+            height: 82,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
-                child: UserAvatar(
-                  name: _userName,
-                  photoPath: UserService.currentUser?['photo_path']?.toString(),
-                  radius: 37,
-                ),
-              ),
-              Positioned(
-                right: 2,
-                bottom: 4,
-                child: Container(
-                  width: 23,
-                  height: 23,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: const Icon(
-                    Icons.camera_alt_rounded,
-                    color: Colors.white,
-                    size: 12,
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
+            child: UserAvatar(
+              name: _userName,
+              photoPath: UserService.currentUser?['photo_path']?.toString(),
+              radius: 37,
+            ),
           ),
           const SizedBox(height: 10),
           Text(
@@ -504,74 +480,26 @@ class _ProfileScreenState extends State<ProfileScreen>
               fontStyle: _hasBio ? FontStyle.normal : FontStyle.italic,
             ),
           ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              _buildStat('1.2K', 'Mengikuti'),
-              _buildStat('850', 'Pengikut'),
-              _buildStat('142', 'Terjual'),
-            ],
-          ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             height: 42,
-            child: ElevatedButton.icon(
+            child: OutlinedButton.icon(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const CompleteProfileScreen(),
-                  ),
-                ).then((_) {
-                  setState(() {});
-                });
+                Navigator.pushNamed(context, '/sales');
               },
-              icon: Icon(
-                _hasBio ? Icons.edit_outlined : Icons.person_outline_rounded,
-                size: 16,
+              icon: const Icon(Icons.storefront_outlined, size: 17),
+              label: const Text(
+                'Penjualan Saya',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
               ),
-              label: Text(
-                _hasBio ? 'Edit Profil' : 'Lengkapi Profil',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary, width: 1.2),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(9),
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStat(String value, String label) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w900,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
             ),
           ),
         ],

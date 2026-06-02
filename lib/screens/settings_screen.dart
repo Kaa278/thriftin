@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../services/user_service.dart';
+import 'complete_profile_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -131,6 +132,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Profile Section
+                  _buildSectionHeader('Profil'),
+                  _buildProfileCard(),
+                  const SizedBox(height: 24),
+
                   // Security Section
                   _buildSectionHeader('Keamanan Akun'),
                   _buildSecurityCard(),
@@ -168,6 +174,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildProfileCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: ListTile(
+        leading: Icon(Icons.person_outline_rounded, color: AppColors.primary),
+        title: const Text(
+          'Edit Profil',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        subtitle: const Text(
+          'Ubah nama, foto, bio, dan info toko',
+          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+        ),
+        trailing: Icon(Icons.chevron_right, color: AppColors.grey400),
+        onTap: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CompleteProfileScreen()),
+          );
+          if (!mounted) return;
+          setState(() {});
+        },
+      ),
     );
   }
 
