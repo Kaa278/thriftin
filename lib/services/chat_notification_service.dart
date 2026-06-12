@@ -1,10 +1,8 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../screens/chat_screen.dart';
 import 'android_notification_service.dart';
 import 'chat_service.dart';
-import 'in_app_notification_service.dart';
 import 'supabase_config.dart';
 import 'user_service.dart';
 
@@ -18,14 +16,22 @@ class ChatNotificationService {
   Set<int> _roomIds = {};
   final ChatService _chatService = ChatService();
   VoidCallback? _onNewMessage;
+  
+  final StreamController<Map<String, dynamic>> _messageController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get messageStream => _messageController.stream;
 
   Future<void> startForCurrentUser({VoidCallback? onNewMessage}) async {
     _onNewMessage = onNewMessage;
     final userId = UserService.currentUserId;
-    if (userId == null) return;
+    if (userId == null) {
+      debugPrint('Chat notifications: skipped, no current user.');
+      return;
+    }
     if (_activeUserId == userId && _channel != null) {
       // Update callback even if already started
       _onNewMessage = onNewMessage;
+      debugPrint('Chat notifications: already started for user $userId.');
       return;
     }
 
@@ -33,6 +39,9 @@ class ChatNotificationService {
     _activeUserId = userId;
     await AndroidNotificationService.instance.initialize();
     await _refreshRoomIds(userId);
+    debugPrint(
+      'Chat notifications: starting for user $userId with ${_roomIds.length} rooms.',
+    );
 
     _channel = SupabaseConfig.client
         .channel('chat-notifications-$userId')
@@ -42,7 +51,11 @@ class ChatNotificationService {
           table: 'chat_messages',
           callback: (payload) => _handleIncomingMessage(userId, payload),
         )
-        .subscribe();
+        .subscribe((status, error) {
+          debugPrint(
+            'Chat notifications realtime: $status${error == null ? '' : ' - $error'}',
+          );
+        });
   }
 
   Future<void> stop() async {
@@ -62,27 +75,36 @@ class ChatNotificationService {
     final record = payload.newRecord;
     final senderId = int.tryParse(record['sender_id']?.toString() ?? '');
     final roomId = int.tryParse(record['room_id']?.toString() ?? '');
-    if (senderId == null || roomId == null || senderId == userId) return;
+    if (senderId == null || roomId == null) {
+      debugPrint('Chat notifications: ignored invalid payload $record');
+      return;
+    }
+    if (senderId == userId) {
+      debugPrint('Chat notifications: ignored own message in room $roomId.');
+      return;
+    }
 
     if (!_roomIds.contains(roomId)) {
       await _refreshRoomIds(userId);
-      if (!_roomIds.contains(roomId)) return;
+      if (!_roomIds.contains(roomId)) {
+        debugPrint(
+          'Chat notifications: ignored room $roomId, not owned by user $userId.',
+        );
+        return;
+      }
     }
 
     final room = await _findRoom(userId, roomId);
     final senderName = _senderNameFromRoom(room, senderId);
+    debugPrint(
+      'Chat notifications: incoming message from $senderName in room $roomId.',
+    );
 
     // Trigger live badge update on main nav
     _onNewMessage?.call();
 
-    // Show in-app banner popup if user is not currently in the active chat room
-    if (ChatScreen.activeRoomId != roomId && room != null) {
-      InAppNotificationService.show(
-        room: room,
-        senderName: senderName,
-        message: record['message']?.toString() ?? '',
-      );
-    }
+    // Trigger stream for active chat screens to refresh in real-time
+    _messageController.add(record);
 
     await AndroidNotificationService.instance.showChatNotification(
       roomId: roomId,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../services/chat_service.dart';
 import '../services/chat_notification_service.dart';
+import '../services/system_notification_service.dart';
 import '../services/order_service.dart';
 import '../services/user_service.dart';
 import 'home_screen.dart';
@@ -32,6 +33,7 @@ class _MainScreenState extends State<MainScreen> {
     ChatNotificationService.instance.startForCurrentUser(
       onNewMessage: _onNewChatMessage,
     );
+    SystemNotificationService.instance.startForCurrentUser();
     _loadBadgeCounts();
   }
 
@@ -42,6 +44,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void dispose() {
     ChatNotificationService.instance.stop();
+    SystemNotificationService.instance.stop();
     super.dispose();
   }
 

@@ -88,6 +88,32 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
+  Future<void> _refreshFavorites() async {
+    final userId = UserService.currentUserId;
+    if (userId == null) return;
+
+    try {
+      final favorites = await ProductService().getFavoriteProducts(forceRefresh: true);
+      final favoriteIds = favorites
+          .map((p) => int.tryParse(p['id']?.toString() ?? ''))
+          .whereType<int>()
+          .toSet();
+
+      if (!mounted) return;
+
+      setState(() {
+        for (var i = 0; i < _myItems.length; i++) {
+          final id = int.tryParse(_myItems[i]['id']?.toString() ?? '');
+          final isFav = id != null && favoriteIds.contains(id);
+          _myItems[i]['isFavorite'] = isFav ? 1 : 0;
+          _myItems[i]['liked'] = isFav;
+        }
+      });
+    } catch (_) {
+      // Ignore errors
+    }
+  }
+
   Future<void> _openSalesOrders() async {
     await Navigator.pushNamed(context, '/sales');
     if (mounted) _loadData();
@@ -596,13 +622,14 @@ class _ProfileScreenState extends State<ProfileScreen>
         final item = items[index];
 
         return GestureDetector(
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => ProductDetailScreen(product: item),
               ),
             );
+            _refreshFavorites();
           },
           child: _buildProductCard(item),
         );

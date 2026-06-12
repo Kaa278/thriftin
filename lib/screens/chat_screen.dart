@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../services/chat_service.dart';
+import '../services/chat_notification_service.dart';
 import '../services/user_service.dart';
 import '../widgets/cached_product_image.dart';
 import '../widgets/skeleton_loaders.dart';
@@ -27,6 +29,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Map<String, dynamic>? _room;
   List<Map<String, dynamic>> _messages = [];
   bool _isLoading = true;
+  StreamSubscription<Map<String, dynamic>>? _messageSubscription;
 
   Map<String, dynamic> get _product {
     final roomProduct = _room?['products'];
@@ -94,6 +97,15 @@ class _ChatScreenState extends State<ChatScreen> {
           roomId: roomId,
           userId: currentUserId,
         );
+
+        _messageSubscription?.cancel();
+        _messageSubscription = ChatNotificationService.instance.messageStream.listen((message) {
+          final msgRoomId = int.tryParse(message['room_id']?.toString() ?? '');
+          if (msgRoomId == roomId) {
+            _chatService.markRoomAsRead(roomId: roomId, userId: currentUserId);
+            _loadMessages();
+          }
+        });
       }
 
       await _loadMessages();
@@ -140,6 +152,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (roomId != null && ChatScreen.activeRoomId == roomId) {
       ChatScreen.activeRoomId = null;
     }
+    _messageSubscription?.cancel();
     _msgController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -626,11 +639,21 @@ class _ChatListScreenState extends State<ChatListScreen> {
   final ChatService _chatService = ChatService();
   List<Map<String, dynamic>> _chats = [];
   bool _isLoading = true;
+  StreamSubscription<Map<String, dynamic>>? _messageSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadChats();
+    _messageSubscription = ChatNotificationService.instance.messageStream.listen((message) {
+      _loadChats(forceRefresh: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _messageSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadChats({bool forceRefresh = false}) async {

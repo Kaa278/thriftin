@@ -4,6 +4,7 @@ import '../widgets/sidebar_drawer.dart';
 import '../widgets/cached_product_image.dart';
 import '../widgets/skeleton_loaders.dart';
 import '../services/product_service.dart';
+import '../services/user_service.dart';
 import 'saved_screen.dart';
 import 'notifications_screen.dart';
 import 'product_detail_screen.dart';
@@ -117,6 +118,45 @@ class _HomeScreenState extends State<HomeScreen> {
     if (position.pixels >= position.maxScrollExtent - 360) {
       _loadMoreProducts();
     }
+  }
+
+  Future<void> _refreshFavorites() async {
+    final userId = UserService.currentUserId;
+    if (userId == null) return;
+
+    try {
+      final favorites = await ProductService().getFavoriteProducts(forceRefresh: true);
+      final favoriteIds = favorites
+          .map((p) => int.tryParse(p['id']?.toString() ?? ''))
+          .whereType<int>()
+          .toSet();
+
+      if (!mounted) return;
+
+      setState(() {
+        for (var i = 0; i < _allProducts.length; i++) {
+          final id = int.tryParse(_allProducts[i]['id']?.toString() ?? '');
+          _allProducts[i]['isFavorite'] = (id != null && favoriteIds.contains(id)) ? 1 : 0;
+        }
+        for (var i = 0; i < _liveProducts.length; i++) {
+          final id = int.tryParse(_liveProducts[i]['id']?.toString() ?? '');
+          _liveProducts[i]['isFavorite'] = (id != null && favoriteIds.contains(id)) ? 1 : 0;
+        }
+        _filterProducts();
+      });
+    } catch (_) {
+      // Ignore errors during silent refresh
+    }
+  }
+
+  Future<void> _navigateToProductDetail(Map<String, dynamic> product) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProductDetailScreen(product: product),
+      ),
+    );
+    await _refreshFavorites();
   }
 
   void _filterProducts() {
@@ -372,14 +412,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildLiveAuctionCard(Map<String, dynamic> product) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ProductDetailScreen(product: product),
-          ),
-        );
-      },
+      onTap: () => _navigateToProductDetail(product),
       child: Container(
         width: 190,
         decoration: BoxDecoration(
@@ -495,15 +528,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   SizedBox(
                     height: 32,
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                ProductDetailScreen(product: product),
-                          ),
-                        );
-                      },
+                      onPressed: () => _navigateToProductDetail(product),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -612,14 +637,7 @@ class _HomeScreenState extends State<HomeScreen> {
           final product = _products[index];
 
           return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ProductDetailScreen(product: product),
-                ),
-              );
-            },
+            onTap: () => _navigateToProductDetail(product),
             child: _buildProductCard(product, index),
           );
         },

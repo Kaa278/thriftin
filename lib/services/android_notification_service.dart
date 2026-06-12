@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class AndroidNotificationService {
@@ -10,12 +11,13 @@ class AndroidNotificationService {
       FlutterLocalNotificationsPlugin();
 
   bool _isInitialized = false;
+  bool _notificationsEnabled = true;
 
   Future<void> initialize() async {
     if (_isInitialized) return;
 
     const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
+      'ic_notification',
     );
     const darwinSettings = DarwinInitializationSettings();
     const settings = InitializationSettings(
@@ -25,11 +27,44 @@ class AndroidNotificationService {
     );
 
     await _plugin.initialize(settings: settings);
-    await _plugin
+    final androidPlugin = _plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
-        >()
+        >();
+
+    final permissionGranted = await androidPlugin
         ?.requestNotificationsPermission();
+    _notificationsEnabled =
+        await androidPlugin?.areNotificationsEnabled() ??
+        permissionGranted ??
+        true;
+
+    if (!_notificationsEnabled) {
+      debugPrint('Thriftin notifications: Android permission is disabled.');
+    }
+
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'thriftin_chat',
+        'Chat Thriftin',
+        description: 'Notifikasi untuk pesan chat baru',
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+        showBadge: true,
+      ),
+    );
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'thriftin_general',
+        'Notifikasi Thriftin',
+        description: 'Notifikasi umum transaksi dan pesanan',
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+        showBadge: true,
+      ),
+    );
 
     _isInitialized = true;
   }
@@ -40,6 +75,7 @@ class AndroidNotificationService {
     required String message,
   }) async {
     await initialize();
+    if (!_notificationsEnabled) return;
 
     const androidDetails = AndroidNotificationDetails(
       'thriftin_chat',
@@ -48,6 +84,12 @@ class AndroidNotificationService {
       importance: Importance.high,
       priority: Priority.high,
       category: AndroidNotificationCategory.message,
+      visibility: NotificationVisibility.public,
+      ticker: 'Pesan baru Thriftin',
+      playSound: true,
+      enableVibration: true,
+      color: Color(0xFF1B8755),
+      largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
     );
     const darwinDetails = DarwinNotificationDetails();
     const details = NotificationDetails(
@@ -58,10 +100,48 @@ class AndroidNotificationService {
 
     await _plugin.show(
       id: roomId,
-      title: 'Pesan baru dari $senderName',
+      title: senderName,
       body: message.isEmpty ? 'Kamu menerima pesan baru' : message,
       notificationDetails: details,
       payload: 'chat:$roomId',
+    );
+  }
+
+  Future<void> showNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    await initialize();
+    if (!_notificationsEnabled) return;
+
+    const androidDetails = AndroidNotificationDetails(
+      'thriftin_general',
+      'Notifikasi Thriftin',
+      channelDescription: 'Notifikasi umum transaksi dan pesanan',
+      importance: Importance.high,
+      priority: Priority.high,
+      visibility: NotificationVisibility.public,
+      ticker: 'Notifikasi Thriftin',
+      playSound: true,
+      enableVibration: true,
+      color: Color(0xFF1B8755),
+      largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
+    );
+    const darwinDetails = DarwinNotificationDetails();
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: darwinDetails,
+      macOS: darwinDetails,
+    );
+
+    await _plugin.show(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: details,
+      payload: payload,
     );
   }
 }

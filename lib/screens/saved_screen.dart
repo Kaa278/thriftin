@@ -26,9 +26,11 @@ class _SavedScreenState extends State<SavedScreen>
     _loadFavorites();
   }
 
-  Future<void> _loadFavorites({bool forceRefresh = false}) async {
+  Future<void> _loadFavorites({bool forceRefresh = false, bool silent = false}) async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
+    if (!silent) {
+      setState(() => _isLoading = true);
+    }
     try {
       final favorites = await ProductService().getFavoriteProducts(
         forceRefresh: forceRefresh,
@@ -265,12 +267,15 @@ class _SavedScreenState extends State<SavedScreen>
           final item = items[index];
           final isLelang = item['isBid'] == 1;
           return GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ProductDetailScreen(product: item),
-              ),
-            ),
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProductDetailScreen(product: item),
+                ),
+              );
+              _loadFavorites(forceRefresh: true, silent: true);
+            },
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,

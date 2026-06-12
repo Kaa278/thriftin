@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../screens/product_detail_screen.dart';
 import '../services/product_service.dart';
+import '../services/user_service.dart';
 import '../widgets/sidebar_drawer.dart';
 import '../widgets/cached_product_image.dart';
 import '../widgets/skeleton_loaders.dart';
@@ -90,6 +91,41 @@ class _SearchScreenState extends State<SearchScreen> {
       });
       _applyFilters();
     }
+  }
+
+  Future<void> _refreshFavorites() async {
+    final userId = UserService.currentUserId;
+    if (userId == null) return;
+
+    try {
+      final favorites = await ProductService().getFavoriteProducts(forceRefresh: true);
+      final favoriteIds = favorites
+          .map((p) => int.tryParse(p['id']?.toString() ?? ''))
+          .whereType<int>()
+          .toSet();
+
+      if (!mounted) return;
+
+      setState(() {
+        for (var i = 0; i < _allRawProducts.length; i++) {
+          final id = int.tryParse(_allRawProducts[i]['id']?.toString() ?? '');
+          _allRawProducts[i]['isFavorite'] = (id != null && favoriteIds.contains(id)) ? 1 : 0;
+        }
+        _applyFilters();
+      });
+    } catch (_) {
+      // Ignore errors during silent refresh
+    }
+  }
+
+  Future<void> _navigateToProductDetail(Map<String, dynamic> product) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProductDetailScreen(product: product),
+      ),
+    );
+    await _refreshFavorites();
   }
 
   Future<void> _loadMoreResults() async {
@@ -945,14 +981,7 @@ class _SearchScreenState extends State<SearchScreen> {
         final item = _results[index];
 
         return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ProductDetailScreen(product: item),
-              ),
-            );
-          },
+          onTap: () => _navigateToProductDetail(item),
           child: _buildProductCard(item),
         );
       },
