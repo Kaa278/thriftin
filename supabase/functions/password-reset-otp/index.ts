@@ -192,14 +192,71 @@ async function sendOtpEmail(
 }
 
 function otpHtml(name: string, code: string) {
+  const safeName = escapeHtml(name);
+  const safeCode = escapeHtml(code);
+  const codeDigits = safeCode.split("").map((digit) =>
+    `<span style="display:inline-block;width:34px;height:42px;line-height:42px;margin:0 3px;border-radius:10px;background:#F0FFF4;border:1px solid #CDEEDB;text-align:center;font-size:24px;font-weight:800;color:#14663F;">${digit}</span>`
+  ).join("");
+
   return `
-    <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111827">
-      <h2 style="margin:0 0 12px">Reset password ThriftIn</h2>
-      <p>Halo ${escapeHtml(name)},</p>
-      <p>Masukkan kode OTP berikut untuk membuat password baru:</p>
-      <p style="font-size:28px;font-weight:700;letter-spacing:6px;margin:20px 0">${code}</p>
-      <p>Kode berlaku ${otpTtlMinutes} menit. Abaikan email ini kalau kamu tidak meminta reset password.</p>
-    </div>
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Kode OTP ThriftIn</title>
+      </head>
+      <body style="margin:0;padding:0;background:#F8F9FA;font-family:Arial,Helvetica,sans-serif;color:#1A1A2E;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F8F9FA;padding:32px 12px;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:18px;overflow:hidden;">
+                <tr>
+                  <td style="padding:24px 28px;background:#1B8755;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td>
+                          <div style="font-size:26px;font-weight:800;font-style:italic;color:#FFFFFF;letter-spacing:-0.2px;">ThriftIn</div>
+                          <div style="margin-top:4px;font-size:13px;color:#DDF7E7;">Reset kata sandi akun kamu</div>
+                        </td>
+                        <td align="right">
+                          <div style="width:42px;height:42px;line-height:42px;border-radius:12px;background:#FFFFFF;color:#1B8755;text-align:center;font-size:24px;font-weight:900;">T</div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:28px;">
+                    <h1 style="margin:0 0 10px;font-size:22px;line-height:1.3;color:#1A1A2E;">Kode verifikasi kamu</h1>
+                    <p style="margin:0 0 18px;font-size:14px;line-height:1.6;color:#4B5563;">
+                      Halo ${safeName}, masukkan kode OTP di bawah ini untuk membuat password baru di aplikasi ThriftIn.
+                    </p>
+
+                    <div style="margin:22px 0 20px;text-align:center;white-space:nowrap;">
+                      ${codeDigits}
+                    </div>
+
+                    <div style="padding:14px 16px;border-radius:14px;background:#F9FAFB;border:1px solid #E5E7EB;">
+                      <p style="margin:0;font-size:13px;line-height:1.55;color:#374151;">
+                        Kode ini berlaku selama <strong>${otpTtlMinutes} menit</strong>. Kalau kamu tidak meminta reset password, email ini bisa diabaikan.
+                      </p>
+                    </div>
+
+                    <p style="margin:18px 0 0;font-size:12px;line-height:1.5;color:#6B7280;">
+                      Demi keamanan, jangan bagikan kode ini ke siapa pun.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:16px 0 0;font-size:12px;color:#9CA3AF;">
+                Email otomatis dari ThriftIn
+              </p>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
   `;
 }
 
