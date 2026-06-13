@@ -35,7 +35,8 @@
 
                 <data
                     android:scheme="thriftin"
-                    android:host="login-callback"/>
+                    android:host="login-callback"
+                    android:pathPrefix="/"/>
             </intent-filter>
         </activity>
         <activity
