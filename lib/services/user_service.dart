@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -85,10 +86,20 @@ class UserService {
 
   Future<bool> signInWithGoogle() async {
     if (Platform.isAndroid || Platform.isIOS) {
-      await _signInWithNativeGoogle();
-      return true;
+      try {
+        await _signInWithNativeGoogle();
+        return true;
+      } on PlatformException catch (error) {
+        if (error.code != 'channel-error') rethrow;
+
+        return _signInWithGoogleOAuth();
+      }
     }
 
+    return _signInWithGoogleOAuth();
+  }
+
+  Future<bool> _signInWithGoogleOAuth() {
     return SupabaseConfig.client.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: googleRedirectUrl,
