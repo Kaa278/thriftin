@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,10 +18,15 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   late final AnimationController _introController;
+  late final AnimationController _pulseController;
   late final AnimationController _progressController;
+  
   late final Animation<double> _logoScale;
-  late final Animation<double> _contentOpacity;
-  late final Animation<Offset> _contentOffset;
+  late final Animation<double> _logoOpacity;
+  late final Animation<double> _textOpacity;
+  late final Animation<Offset> _textOffset;
+  late final Animation<double> _backgroundAnimation;
+
   final List<Timer> _timers = [];
 
   @override
@@ -33,24 +39,40 @@ class _SplashScreenState extends State<SplashScreen>
   void _setupAnimations() {
     _introController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 650),
-    );
-    _progressController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 1000),
     );
 
-    _logoScale = Tween<double>(begin: 0.92, end: 1).animate(
-      CurvedAnimation(parent: _introController, curve: Curves.easeOutCubic),
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    )..repeat(reverse: true);
+
+    _progressController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
     );
-    _contentOpacity = Tween<double>(
-      begin: 0,
-      end: 1,
-    ).animate(CurvedAnimation(parent: _introController, curve: Curves.easeOut));
-    _contentOffset =
-        Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
-          CurvedAnimation(parent: _introController, curve: Curves.easeOutCubic),
-        );
+
+    final logoCurve = CurvedAnimation(
+      parent: _introController,
+      curve: const Interval(0.0, 0.75, curve: Curves.easeOutBack),
+    );
+    final textCurve = CurvedAnimation(
+      parent: _introController,
+      curve: const Interval(0.35, 1.0, curve: Curves.easeOutCubic),
+    );
+
+    _logoScale = Tween<double>(begin: 0.75, end: 1.0).animate(logoCurve);
+    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(logoCurve);
+
+    _textOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(textCurve);
+    _textOffset = Tween<Offset>(
+      begin: const Offset(0, 0.15),
+      end: Offset.zero,
+    ).animate(textCurve);
+
+    _backgroundAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   Future<void> _delay(Duration duration) {
@@ -63,13 +85,13 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _start() async {
-    await _delay(const Duration(milliseconds: 120));
+    await _delay(const Duration(milliseconds: 200));
     if (!mounted) return;
 
     _introController.forward();
     _progressController.forward();
 
-    await _delay(const Duration(milliseconds: 2100));
+    await _delay(const Duration(milliseconds: 2500));
     if (!mounted) return;
 
     await _navigateToNext();
@@ -96,6 +118,7 @@ class _SplashScreenState extends State<SplashScreen>
       timer.cancel();
     }
     _introController.dispose();
+    _pulseController.dispose();
     _progressController.dispose();
     super.dispose();
   }
@@ -112,93 +135,137 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF10B981),
-              AppColors.primary,
-              AppColors.primaryDark,
-            ],
-          ),
-        ),
+      body: AnimatedBuilder(
+        animation: _backgroundAnimation,
+        builder: (context, child) {
+          return CustomPaint(
+            painter: SplashBackgroundPainter(
+              animationValue: _backgroundAnimation.value,
+              primaryColor: AppColors.primary,
+              darkColor: AppColors.primaryDark,
+            ),
+            child: child,
+          );
+        },
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
             child: Column(
               children: [
-                const Spacer(flex: 3),
+                const Spacer(flex: 4),
                 FadeTransition(
-                  opacity: _contentOpacity,
-                  child: SlideTransition(
-                    position: _contentOffset,
-                    child: Column(
-                      children: [
-                        ScaleTransition(
-                          scale: _logoScale,
-                          child: Container(
-                            width: 118,
-                            height: 118,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(28),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.36),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.18),
-                                  blurRadius: 30,
-                                  offset: const Offset(0, 16),
-                                ),
-                              ],
+                  opacity: _logoOpacity,
+                  child: ScaleTransition(
+                    scale: _logoScale,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 24,
+                              offset: const Offset(0, 12),
                             ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: Image.asset(
-                                'assets/icons/icon.png',
-                                fit: BoxFit.cover,
-                              ),
-                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(28),
+                          child: Image.asset(
+                            'assets/icons/icon.png',
+                            width: 104,
+                            height: 104,
+                            fit: BoxFit.cover,
                           ),
                         ),
-                        const SizedBox(height: 24),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 28),
+                FadeTransition(
+                  opacity: _textOpacity,
+                  child: SlideTransition(
+                    position: _textOffset,
+                    child: Column(
+                      children: [
                         const Text(
                           'ThriftIn',
                           style: TextStyle(
-                            fontSize: 34,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 36,
+                            fontWeight: FontWeight.w900,
                             color: Colors.white,
-                            fontStyle: FontStyle.italic,
+                            letterSpacing: 1.2,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black12,
+                                offset: Offset(0, 4),
+                                blurRadius: 8,
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Marketplace thrift dan preloved',
+                        Text(
+                          'Belanja thrift, hemat & stylish',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xDDFFFFFF),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.white.withValues(alpha: 0.85),
+                            letterSpacing: 0.2,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const Spacer(flex: 2),
-                _buildProgress(),
-                const SizedBox(height: 22),
-                const Text(
-                  'v1.0.0',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xBBFFFFFF),
-                    fontWeight: FontWeight.w500,
+                const Spacer(flex: 3),
+                FadeTransition(
+                  opacity: _textOpacity,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 140,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        child: AnimatedBuilder(
+                          animation: _progressController,
+                          builder: (context, _) {
+                            return FractionallySizedBox(
+                              alignment: Alignment.centerLeft,
+                              widthFactor: _progressController.value,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(2),
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Colors.white,
+                                      Color(0xFFE8F5E9),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'v1.0.2',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.5),
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -208,27 +275,77 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
   }
+}
 
-  Widget _buildProgress() {
-    return FadeTransition(
-      opacity: _contentOpacity,
-      child: AnimatedBuilder(
-        animation: _progressController,
-        builder: (context, _) {
-          return SizedBox(
-            width: 168,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                value: _progressController.value,
-                minHeight: 4,
-                backgroundColor: Colors.white24,
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            ),
-          );
-        },
+class SplashBackgroundPainter extends CustomPainter {
+  final double animationValue;
+  final Color primaryColor;
+  final Color darkColor;
+
+  SplashBackgroundPainter({
+    required this.animationValue,
+    required this.primaryColor,
+    required this.darkColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect rect = Offset.zero & size;
+    final Paint paint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          darkColor,
+          primaryColor,
+        ],
+      ).createShader(rect);
+    canvas.drawRect(rect, paint);
+
+    final Paint wavePaint = Paint()
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 70);
+
+    final double offset = animationValue * 40;
+
+    wavePaint.color = primaryColor.withValues(alpha: 0.25);
+    final Path topPath = Path();
+    topPath.addOval(Rect.fromCircle(
+      center: Offset(
+        size.width * 0.8 + math.sin(animationValue * math.pi) * 20,
+        size.height * 0.15 - offset * 0.2,
       ),
-    );
+      radius: size.width * 0.55,
+    ));
+    canvas.drawPath(topPath, wavePaint);
+
+    wavePaint.color = darkColor.withValues(alpha: 0.45);
+    final Path bottomPath = Path();
+    bottomPath.addOval(Rect.fromCircle(
+      center: Offset(
+        size.width * 0.1 - math.cos(animationValue * math.pi) * 20,
+        size.height * 0.85 + offset * 0.3,
+      ),
+      radius: size.width * 0.65,
+    ));
+    canvas.drawPath(bottomPath, wavePaint);
+
+    wavePaint.color = const Color(0xFF26A69A).withValues(alpha: 0.15);
+    final Path middlePath = Path();
+    middlePath.addOval(Rect.fromCircle(
+      center: Offset(
+        size.width * 0.5,
+        size.height * 0.5 + math.sin(animationValue * 2 * math.pi) * 15,
+      ),
+      radius: size.width * 0.45,
+    ));
+    canvas.drawPath(middlePath, wavePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant SplashBackgroundPainter oldDelegate) {
+    return oldDelegate.animationValue != animationValue ||
+        oldDelegate.primaryColor != primaryColor ||
+        oldDelegate.darkColor != darkColor;
   }
 }
