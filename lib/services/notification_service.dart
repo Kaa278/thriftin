@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'supabase_config.dart';
 import 'user_service.dart';
 
@@ -23,11 +25,13 @@ class NotificationService {
       'description': description,
       'isUnread': 1,
     });
-    await _sendPushNotification(
-      userId: userId,
-      title: title,
-      body: description,
-      payload: {'type': 'notification'},
+    unawaited(
+      _sendPushNotification(
+        userId: userId,
+        title: title,
+        body: description,
+        payload: {'type': 'notification'},
+      ),
     );
     _cache.remove(userId);
   }

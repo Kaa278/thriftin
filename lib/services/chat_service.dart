@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -136,10 +137,12 @@ class ChatService {
         .from('chat_rooms')
         .update({'last_message': preview, 'last_message_at': now})
         .eq('id', roomId);
-    await _sendChatPushNotification(
-      roomId: roomId,
-      senderId: senderId,
-      message: preview,
+    unawaited(
+      _sendChatPushNotification(
+        roomId: roomId,
+        senderId: senderId,
+        message: preview,
+      ),
     );
     _roomsCache.clear();
   }

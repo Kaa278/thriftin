@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../services/order_service.dart';
@@ -20,6 +22,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
   final OrderService _orderService = OrderService();
   List<Map<String, dynamic>> _orders = [];
   bool _isLoading = true;
+  Timer? _autoRefreshTimer;
 
   int get _unopenedCount =>
       _orders.where((order) => order['is_opened'] != true).length;
@@ -32,10 +35,16 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
       setState(() {}); // Trigger rebuild to update empty state or filtering
     });
     _loadOrders();
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (mounted) _loadOrders(forceRefresh: true, silent: true);
+    });
   }
 
-  Future<void> _loadOrders({bool forceRefresh = false}) async {
-    setState(() => _isLoading = true);
+  Future<void> _loadOrders({
+    bool forceRefresh = false,
+    bool silent = false,
+  }) async {
+    if (!silent && mounted) setState(() => _isLoading = true);
     try {
       final userId = UserService.currentUserId;
       if (userId == null) {
@@ -59,12 +68,13 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
         _isLoading = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (!silent && mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   void dispose() {
+    _autoRefreshTimer?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -422,14 +432,6 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
           ],
         ),
         centerTitle: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.primary),
-            tooltip: 'Refresh',
-            onPressed: _loadOrders,
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
       body: Column(
         children: [
@@ -456,25 +458,29 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
           ),
 
           Expanded(
-            child: _isLoading
-                ? SkeletonLoaders.list()
-                : TabBarView(
-                    controller: _tabController,
-                    children: tabs.map((t) {
-                      final filtered = _getFilteredOrders(t);
-                      if (filtered.isEmpty) {
-                        return _buildEmptyState(t);
-                      }
-                      return ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          final order = filtered[index];
-                          return _buildOrderCard(order);
-                        },
-                      );
-                    }).toList(),
-                  ),
+            child: RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: () => _loadOrders(forceRefresh: true),
+              child: _isLoading
+                  ? SkeletonLoaders.list()
+                  : TabBarView(
+                      controller: _tabController,
+                      children: tabs.map((t) {
+                        final filtered = _getFilteredOrders(t);
+                        if (filtered.isEmpty) {
+                          return _buildEmptyState(t);
+                        }
+                        return ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final order = filtered[index];
+                            return _buildOrderCard(order);
+                          },
+                        );
+                      }).toList(),
+                    ),
+            ),
           ),
         ],
       ),

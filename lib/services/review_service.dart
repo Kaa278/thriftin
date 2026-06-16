@@ -68,6 +68,32 @@ class ReviewService {
     return Map<String, dynamic>.from(summary);
   }
 
+  Future<List<Map<String, dynamic>>> getReviewsForSeller(
+    int sellerId, {
+    bool forceRefresh = false,
+  }) async {
+    final results = await SupabaseConfig.client
+        .from('reviews')
+        .select(
+          '*, products(name, imageUrl), users!reviews_reviewer_id_fkey(name, photo_path)',
+        )
+        .eq('seller_id', sellerId)
+        .order('id', ascending: false);
+
+    return results.map((row) {
+      final review = Map<String, dynamic>.from(row as Map);
+      final user = Map<String, dynamic>.from((review['users'] as Map?) ?? {});
+      final product = Map<String, dynamic>.from(
+        (review['products'] as Map?) ?? {},
+      );
+      review['reviewer_name'] = user['name'] ?? 'Pembeli';
+      review['reviewer_photo_path'] = user['photo_path'];
+      review['product_name'] = product['name'] ?? 'Produk';
+      review['product_image'] = product['imageUrl'];
+      return review;
+    }).toList();
+  }
+
   Future<int> addReview({
     required int productId,
     required int orderId,

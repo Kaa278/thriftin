@@ -44,7 +44,6 @@ class FirebaseNotificationService {
     _messaging = messaging;
 
     try {
-      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
       await AndroidNotificationService.instance.initialize().timeout(
         const Duration(seconds: 4),
       );
@@ -59,7 +58,7 @@ class FirebaseNotificationService {
       return;
     }
 
-    FirebaseMessaging.onMessage.listen(_showForegroundNotification);
+    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
   }
 
   Future<void> registerCurrentDevice(int userId) async {
@@ -136,8 +135,10 @@ class FirebaseNotificationService {
     debugPrint('FCM token registered for user $userId.');
   }
 
-  Future<void> _showForegroundNotification(RemoteMessage message) async {
-    await showLocalNotificationFromMessage(message);
+  void _handleForegroundMessage(RemoteMessage message) {
+    debugPrint(
+      'FCM foreground skipped local notification: ${message.messageId}',
+    );
   }
 
   static Future<void> showLocalNotificationFromMessage(
@@ -154,6 +155,17 @@ class FirebaseNotificationService {
         message.data['payload']?.toString() ??
         message.data['route']?.toString() ??
         message.data['type']?.toString();
+    final type = message.data['type']?.toString();
+    final roomId = int.tryParse(message.data['roomId']?.toString() ?? '');
+
+    if (type == 'chat' && roomId != null) {
+      await AndroidNotificationService.instance.showChatNotification(
+        roomId: roomId,
+        senderName: title,
+        message: body,
+      );
+      return;
+    }
 
     await AndroidNotificationService.instance.showNotification(
       id: DateTime.now().millisecondsSinceEpoch.remainder(100000),

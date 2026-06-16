@@ -32,8 +32,16 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
+    _dismissKeyboardOnStart();
     _setupAnimations();
     _start();
+  }
+
+  void _dismissKeyboardOnStart() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      SystemChannels.textInput.invokeMethod('TextInput.hide');
+    });
   }
 
   void _setupAnimations() {

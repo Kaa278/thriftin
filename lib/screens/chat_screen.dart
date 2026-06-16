@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_colors.dart';
@@ -12,6 +13,14 @@ import '../widgets/cached_product_image.dart';
 import '../widgets/skeleton_loaders.dart';
 import '../widgets/user_avatar.dart';
 import 'checkout_screen.dart';
+
+String _cleanChatDisplayName(String value) {
+  final cleaned = value
+      .replaceAll(RegExp(r'[/\\]+'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+  return cleaned.isEmpty ? 'User Thriftin' : cleaned;
+}
 
 class ChatScreen extends StatefulWidget {
   final Map<String, dynamic>? room;
@@ -62,8 +71,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   String get _otherUserName {
     final name = _otherUser['name']?.toString().trim();
-    if (name != null && name.isNotEmpty) return name;
-    return _product['storeName']?.toString() ?? 'User Thriftin';
+    if (name != null && name.isNotEmpty) return _cleanChatDisplayName(name);
+    return _cleanChatDisplayName(
+      _product['storeName']?.toString() ?? 'User Thriftin',
+    );
   }
 
   String? get _otherUserPhoto => _otherUser['photo_path']?.toString().trim();
@@ -183,6 +194,7 @@ class _ChatScreenState extends State<ChatScreen> {
       senderId: senderId,
       message: message,
     );
+    await _loadMessages();
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -224,6 +236,7 @@ class _ChatScreenState extends State<ChatScreen> {
         senderId: senderId,
         message: '${ChatService.imageMessagePrefix}$imageUrl',
       );
+      await _loadMessages();
     } catch (error) {
       debugPrint('Chat image send failed: $error');
       if (!mounted) return;
@@ -546,7 +559,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         }
                       }
 
-                      return _buildDismissibleMessage(
+                      return _buildDeletableMessage(
                         message: msg,
                         isMine: isMine,
                         child: messageWidget,
@@ -713,7 +726,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildDismissibleMessage({
+  Widget _buildDeletableMessage({
     required Map<String, dynamic> message,
     required bool isMine,
     required Widget child,
@@ -722,45 +735,133 @@ class _ChatScreenState extends State<ChatScreen> {
     final roomId = int.tryParse(message['room_id']?.toString() ?? '');
     if (!isMine || messageId == null || roomId == null) return child;
 
-    return Dismissible(
-      key: ValueKey('chat-message-$messageId'),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.only(right: 18),
-        alignment: Alignment.centerRight,
-        decoration: BoxDecoration(
-          color: AppColors.error,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Icon(Icons.delete_outline_rounded, color: Colors.white),
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onLongPress: () => _confirmDeleteMessage(
+        message: message,
+        roomId: roomId,
+        messageId: messageId,
       ),
-      confirmDismiss: (_) async {
-        return await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Hapus pesan?'),
-                content: const Text('Pesan ini akan dihapus dari chat.'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const Text('Batal'),
+      child: child,
+    );
+  }
+
+  Future<void> _confirmDeleteMessage({
+    required Map<String, dynamic> message,
+    required int roomId,
+    required int messageId,
+  }) async {
+    HapticFeedback.mediumImpact();
+    final messageText = _messagePreviewForAction(message);
+    final shouldDelete =
+        await showModalBottomSheet<bool>(
+          context: context,
+          backgroundColor: Colors.white,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+          ),
+          builder: (context) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.grey300,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
                   ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: const Text('Hapus'),
+                  const SizedBox(height: 18),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.72,
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          messageText,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildMessageActionTile(
+                    icon: Icons.delete_outline_rounded,
+                    label: 'Hapus pesan',
+                    color: AppColors.error,
+                    onTap: () => Navigator.pop(context, true),
+                  ),
+                  _buildMessageActionTile(
+                    icon: Icons.close_rounded,
+                    label: 'Batal',
+                    color: AppColors.textSecondary,
+                    onTap: () => Navigator.pop(context, false),
                   ),
                 ],
               ),
-            ) ??
-            false;
-      },
-      onDismissed: (_) async {
-        await _chatService.deleteMessage(roomId: roomId, messageId: messageId);
-        await _loadMessages();
-      },
-      child: child,
+            ),
+          ),
+        ) ??
+        false;
+    if (!shouldDelete) return;
+
+    try {
+      await _chatService.deleteMessage(roomId: roomId, messageId: messageId);
+      await _loadMessages();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Gagal menghapus pesan')));
+    }
+  }
+
+  Widget _buildMessageActionTile({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: color),
+      title: Text(
+        label,
+        style: TextStyle(color: color, fontWeight: FontWeight.w700),
+      ),
+      onTap: onTap,
     );
+  }
+
+  String _messagePreviewForAction(Map<String, dynamic> message) {
+    final offerAmount = message['offer_amount'];
+    if (offerAmount != null) {
+      return 'Penawaran ${_formatPrice(offerAmount)}';
+    }
+
+    final text = message['message']?.toString() ?? '';
+    if (ChatService.isImageMessage(text)) return 'Gambar';
+    final trimmed = text.trim();
+    return trimmed.isEmpty ? 'Pesan' : trimmed;
   }
 
   Widget _buildBubble(String text, bool isSeller, String time) {
@@ -1036,15 +1137,17 @@ class _ChatListScreenState extends State<ChatListScreen> {
     });
   }
 
-  void _deleteSelectedChats() {
+  Future<void> _deleteSelectedChats() async {
     final sortedSelections = _selectedChats.toList()
       ..sort((a, b) => b.compareTo(a));
-    for (final index in sortedSelections) {
-      final roomId = int.tryParse(_chats[index]['id']?.toString() ?? '');
-      if (roomId != null) {
-        _chatService.deleteRoom(roomId);
-      }
-    }
+    final roomIds = sortedSelections
+        .map((index) => int.tryParse(_chats[index]['id']?.toString() ?? ''))
+        .whereType<int>()
+        .toList();
+
+    await Future.wait(roomIds.map(_chatService.deleteRoom));
+    if (!mounted) return;
+
     setState(() {
       for (final index in sortedSelections) {
         _chats.removeAt(index);
@@ -1052,6 +1155,25 @@ class _ChatListScreenState extends State<ChatListScreen> {
       _isEditing = false;
       _selectedChats.clear();
     });
+    widget.onUnreadChanged?.call();
+  }
+
+  Future<void> _deleteChatAt(int index) async {
+    final chat = _chats[index];
+    final roomId = int.tryParse(chat['id']?.toString() ?? '');
+    if (roomId == null) return;
+
+    setState(() => _chats.removeAt(index));
+    try {
+      await _chatService.deleteRoom(roomId);
+      widget.onUnreadChanged?.call();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _chats.insert(index, chat));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Gagal menghapus chat')));
+    }
   }
 
   @override
@@ -1110,15 +1232,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 final otherUser = Map<String, dynamic>.from(
                   ((isBuyer ? chat['seller'] : chat['buyer']) as Map?) ?? {},
                 );
-                final title =
-                    otherUser['name']?.toString() ??
-                    product['storeName']?.toString() ??
-                    'Seller Thriftin';
+                final title = _cleanChatDisplayName(
+                  otherUser['name']?.toString() ??
+                      product['storeName']?.toString() ??
+                      'Seller Thriftin',
+                );
                 final unreadCount =
                     int.tryParse(chat['unread']?.toString() ?? '') ?? 0;
                 final hasUnread = unreadCount > 0;
 
-                return ListTile(
+                final tile = ListTile(
                   tileColor: hasUnread
                       ? AppColors.primary.withValues(alpha: 0.035)
                       : null,
@@ -1233,6 +1356,45 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             builder: (_) => ChatScreen(room: chat),
                           ),
                         ).then((_) => _loadChats(forceRefresh: true)),
+                );
+                if (_isEditing) return tile;
+
+                return Dismissible(
+                  key: ValueKey('chat-room-${chat['id']}'),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    color: AppColors.error,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 22),
+                    child: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: Colors.white,
+                    ),
+                  ),
+                  confirmDismiss: (_) async {
+                    return await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Hapus chat?'),
+                            content: const Text(
+                              'Percakapan ini akan dihapus dari daftar chat.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('Batal'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text('Hapus'),
+                              ),
+                            ],
+                          ),
+                        ) ??
+                        false;
+                  },
+                  onDismissed: (_) => _deleteChatAt(index),
+                  child: tile,
                 );
               },
             ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter/services.dart';
 import '../services/product_service.dart';
 import '../services/user_service.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -39,6 +40,16 @@ class _SellScreenState extends State<SellScreen> {
     'Buku',
     'Furnitur',
   ];
+
+  final Map<String, IconData> _categoryIcons = const {
+    'Pakaian': Icons.checkroom_outlined,
+    'Sepatu': Icons.directions_walk_outlined,
+    'Tas': Icons.shopping_bag_outlined,
+    'Aksesoris': Icons.watch_outlined,
+    'Elektronik': Icons.devices_other_outlined,
+    'Buku': Icons.menu_book_outlined,
+    'Furnitur': Icons.chair_outlined,
+  };
 
   final List<Map<String, dynamic>> _auctionDurations = const [
     {'label': '6 Jam', 'duration': Duration(hours: 6)},
@@ -150,23 +161,7 @@ class _SellScreenState extends State<SellScreen> {
             // Kategori
             _buildSectionLabel('Kategori'),
             const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _selectedCategory,
-              hint: const Text(
-                'Pilih Kategori',
-                style: TextStyle(color: AppColors.textHint, fontSize: 14),
-              ),
-              decoration: _inputDecoration(''),
-              items: _categories
-                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
-                  .toList(),
-              onChanged: (val) => setState(() => _selectedCategory = val),
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textPrimary,
-              ),
-              dropdownColor: AppColors.background,
-            ),
+            _buildCategorySelector(),
             const SizedBox(height: 16),
 
             // Kondisi
@@ -203,6 +198,7 @@ class _SellScreenState extends State<SellScreen> {
             TextField(
               controller: _priceController,
               keyboardType: TextInputType.number,
+              inputFormatters: [_RupiahThousandsFormatter()],
               decoration:
                   _inputDecoration(
                     _selectedMethod == 1 ? 'Harga awal' : ' 0',
@@ -550,6 +546,183 @@ class _SellScreenState extends State<SellScreen> {
     );
   }
 
+  Widget _buildCategorySelector() {
+    final selected = _selectedCategory;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _showCategorySheet,
+        child: InputDecorator(
+          decoration: _inputDecoration(''),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: selected == null
+                      ? AppColors.grey100
+                      : AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  selected == null
+                      ? Icons.category_outlined
+                      : _categoryIcons[selected] ?? Icons.category_outlined,
+                  size: 19,
+                  color: selected == null
+                      ? AppColors.textHint
+                      : AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  selected ?? 'Pilih Kategori',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: selected == null
+                        ? FontWeight.w400
+                        : FontWeight.w700,
+                    color: selected == null
+                        ? AppColors.textHint
+                        : AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: AppColors.textSecondary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCategorySheet() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.grey300,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Pilih Kategori',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Flexible(
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _categories.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          childAspectRatio: 3.4,
+                        ),
+                    itemBuilder: (context, index) {
+                      final category = _categories[index];
+                      final isSelected = category == _selectedCategory;
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () {
+                          setState(() => _selectedCategory = category);
+                          Navigator.pop(context);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.primaryLight
+                                : AppColors.grey50,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.border,
+                              width: isSelected ? 1.4 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                _categoryIcons[category] ??
+                                    Icons.category_outlined,
+                                size: 19,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  category,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              if (isSelected)
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 17,
+                                  color: AppColors.primary,
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _pickImage(int index) async {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
@@ -564,15 +737,11 @@ class _SellScreenState extends State<SellScreen> {
               initAspectRatio: CropAspectRatioPreset.square,
               lockAspectRatio: true,
               activeControlsWidgetColor: AppColors.primary,
-              aspectRatioPresets: [
-                CropAspectRatioPreset.square,
-              ],
+              aspectRatioPresets: [CropAspectRatioPreset.square],
             ),
             IOSUiSettings(
               title: 'Crop Foto Produk',
-              aspectRatioPresets: [
-                CropAspectRatioPreset.square,
-              ],
+              aspectRatioPresets: [CropAspectRatioPreset.square],
             ),
           ],
         );
@@ -813,6 +982,33 @@ class _SellScreenState extends State<SellScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RupiahThousandsFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) {
+      return const TextEditingValue(
+        text: '',
+        selection: TextSelection.collapsed(offset: 0),
+      );
+    }
+
+    final normalizedDigits = digits.replaceFirst(RegExp(r'^0+(?=\d)'), '');
+    final formatted = normalizedDigits.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => '.',
+    );
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

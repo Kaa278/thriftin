@@ -8,6 +8,7 @@ import 'product_detail_screen.dart';
 import '../services/user_service.dart';
 import '../services/product_service.dart';
 import '../services/order_service.dart';
+import '../services/review_service.dart';
 import 'settings_screen.dart';
 import 'saved_screen.dart';
 import 'cart_screen.dart';
@@ -37,6 +38,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   List<Map<String, dynamic>> _myItems = [];
+  List<Map<String, dynamic>> _sellerReviews = [];
   int _sellerUnopenedOrders = 0;
   bool _isLoading = true;
 
@@ -54,6 +56,10 @@ class _ProfileScreenState extends State<ProfileScreen>
       if (UserService.currentUserId != null) {
         final userId = UserService.currentUserId!;
         final items = await ProductService().getProductsBySeller(userId);
+        final reviews = await ReviewService().getReviewsForSeller(
+          userId,
+          forceRefresh: true,
+        );
         final sellerUnopenedOrders = await OrderService()
             .getUnopenedOrdersCount(
               userId,
@@ -65,6 +71,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
         setState(() {
           _myItems = items;
+          _sellerReviews = reviews;
           _sellerUnopenedOrders = sellerUnopenedOrders;
           _isLoading = false;
         });
@@ -73,6 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
         setState(() {
           _myItems = [];
+          _sellerReviews = [];
           _sellerUnopenedOrders = 0;
           _isLoading = false;
         });
@@ -82,6 +90,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
       setState(() {
         _myItems = [];
+        _sellerReviews = [];
         _sellerUnopenedOrders = 0;
         _isLoading = false;
       });
@@ -835,7 +844,92 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildReviews() {
-    return _buildPlaceholder('Belum ada ulasan');
+    if (_sellerReviews.isEmpty) {
+      return _buildPlaceholder('Belum ada ulasan');
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      itemCount: _sellerReviews.length,
+      itemBuilder: (context, index) => _buildReviewCard(_sellerReviews[index]),
+    );
+  }
+
+  Widget _buildReviewCard(Map<String, dynamic> review) {
+    final rating = int.tryParse(review['rating']?.toString() ?? '') ?? 0;
+    final reviewerName = review['reviewer_name']?.toString() ?? 'Pembeli';
+    final productName = review['product_name']?.toString() ?? 'Produk';
+    final comment = review['comment']?.toString().trim() ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              UserAvatar(
+                name: reviewerName,
+                photoPath: review['reviewer_photo_path']?.toString(),
+                radius: 18,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      reviewerName,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      productName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                children: List.generate(
+                  5,
+                  (index) => Icon(
+                    index < rating ? Icons.star_rounded : Icons.star_border,
+                    color: AppColors.ratingStar,
+                    size: 17,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (comment.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              comment,
+              style: const TextStyle(
+                fontSize: 12.5,
+                height: 1.45,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Widget _buildPlaceholder(String message) {

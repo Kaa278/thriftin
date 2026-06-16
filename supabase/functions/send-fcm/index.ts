@@ -120,11 +120,13 @@ async function sendMessage({
         message: {
           token,
           notification: { title, body },
-          data: stringifyPayload(payload),
+          data: stringifyPayload({ ...payload, title, body }),
           android: {
             priority: "HIGH",
             notification: {
-              channel_id: "thriftin_general",
+              channel_id: payload.type === "chat"
+                ? "thriftin_chat"
+                : "thriftin_general",
               sound: "default",
             },
           },

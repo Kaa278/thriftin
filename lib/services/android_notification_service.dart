@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AndroidNotificationService {
   AndroidNotificationService._();
@@ -9,6 +12,7 @@ class AndroidNotificationService {
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
+  final Map<int, List<Message>> _chatNotificationMessages = {};
 
   bool _isInitialized = false;
   bool _notificationsEnabled = true;
@@ -94,7 +98,31 @@ class AndroidNotificationService {
         ? 'Kamu menerima pesan baru'
         : message.trim();
 
-    const androidDetails = AndroidNotificationDetails(
+    final persistedMessages = await _loadChatNotificationMessages(
+      roomId: roomId,
+      senderName: trimmedSenderName,
+    );
+    final messages = _chatNotificationMessages.putIfAbsent(
+      roomId,
+      () => persistedMessages,
+    );
+    messages.add(
+      Message(
+        notificationMessage,
+        DateTime.now(),
+        Person(name: trimmedSenderName),
+      ),
+    );
+    if (messages.length > 6) {
+      messages.removeRange(0, messages.length - 6);
+    }
+    await _saveChatNotificationMessages(
+      roomId: roomId,
+      senderName: trimmedSenderName,
+      messages: messages,
+    );
+
+    final androidDetails = AndroidNotificationDetails(
       'thriftin_chat',
       'Chat Thriftin',
       channelDescription: 'Notifikasi untuk pesan chat baru',
@@ -108,9 +136,15 @@ class AndroidNotificationService {
       enableVibration: true,
       color: Color(0xFF159A5B),
       subText: 'ThriftIn',
+      styleInformation: MessagingStyleInformation(
+        Person(name: 'Kamu'),
+        conversationTitle: trimmedSenderName,
+        groupConversation: false,
+        messages: List<Message>.from(messages),
+      ),
     );
     const darwinDetails = DarwinNotificationDetails();
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: androidDetails,
       iOS: darwinDetails,
       macOS: darwinDetails,
@@ -124,6 +158,50 @@ class AndroidNotificationService {
       payload: 'chat:$roomId',
     );
   }
+
+  Future<List<Message>> _loadChatNotificationMessages({
+    required int roomId,
+    required String senderName,
+  }) async {
+    if (_chatNotificationMessages.containsKey(roomId)) {
+      return _chatNotificationMessages[roomId]!;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final rows = prefs.getStringList(_chatHistoryKey(roomId)) ?? const [];
+    return rows.map((row) {
+      try {
+        final data = jsonDecode(row) as Map<String, dynamic>;
+        return Message(
+          data['text']?.toString() ?? '',
+          DateTime.tryParse(data['time']?.toString() ?? '') ?? DateTime.now(),
+          Person(name: data['sender']?.toString() ?? senderName),
+        );
+      } catch (_) {
+        return Message(row, DateTime.now(), Person(name: senderName));
+      }
+    }).toList();
+  }
+
+  Future<void> _saveChatNotificationMessages({
+    required int roomId,
+    required String senderName,
+    required List<Message> messages,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _chatHistoryKey(roomId),
+      messages.map((message) {
+        return jsonEncode({
+          'text': message.text,
+          'time': message.timestamp.toIso8601String(),
+          'sender': message.person?.name ?? senderName,
+        });
+      }).toList(),
+    );
+  }
+
+  String _chatHistoryKey(int roomId) => 'chat_notification_history_$roomId';
 
   Future<void> showNotification({
     required int id,
