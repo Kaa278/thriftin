@@ -220,14 +220,20 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         titleSpacing: 0,
-        title: Text(
-          'ThriftIn',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: AppColors.primary,
-            fontStyle: FontStyle.italic,
-            letterSpacing: -0.3,
+        title: ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Color(0xFF10B981), Color(0xFF006C49)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ).createShader(bounds),
+          child: const Text(
+            'ThriftIn',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.3,
+            ),
           ),
         ),
         actions: [

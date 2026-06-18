@@ -264,34 +264,7 @@ class _SellScreenState extends State<SellScreen> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // Metode Pengiriman
-            _buildSectionLabel('Metode Pengiriman'),
-            const SizedBox(height: 8),
-            _buildShippingOption(
-              icon: Icons.local_shipping_outlined,
-              title: 'Ekspedisi Regular',
-              subtitle: '2–5 hari kerja',
-              value: _ekspedisi,
-              onChanged: (v) => setState(() => _ekspedisi = v!),
-            ),
-            const SizedBox(height: 8),
-            _buildShippingOption(
-              icon: Icons.flash_on_outlined,
-              title: 'Instant / Sameday',
-              subtitle: 'Hari yang sama',
-              value: _instant,
-              onChanged: (v) => setState(() => _instant = v!),
-            ),
-            const SizedBox(height: 8),
-            _buildShippingOption(
-              icon: Icons.handshake_outlined,
-              title: 'COD (Ketemuan)',
-              subtitle: 'Titik temu kesepakatan',
-              value: _cod,
-              onChanged: (v) => setState(() => _cod = v!),
-            ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 12),
 
             // Submit button
             SizedBox(
@@ -928,61 +901,6 @@ class _SellScreenState extends State<SellScreen> {
     final hour = endTime.hour.toString().padLeft(2, '0');
     final minute = endTime.minute.toString().padLeft(2, '0');
     return '$day/$month $hour:$minute';
-  }
-
-  Widget _buildShippingOption({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool?> onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: value ? AppColors.primary : AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 22,
-            color: value ? AppColors.primary : AppColors.textHint,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textHint,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Checkbox(
-            value: value,
-            onChanged: onChanged,
-            activeColor: AppColors.primary,
-            side: const BorderSide(color: AppColors.border, width: 1.5),
-          ),
-        ],
-      ),
-    );
   }
 }
 

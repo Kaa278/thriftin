@@ -67,7 +67,6 @@ class ThriftinApp extends StatelessWidget {
             fontSize: 22,
             fontWeight: FontWeight.w800,
             color: AppColors.primary,
-            fontStyle: FontStyle.italic,
             letterSpacing: -0.5,
           ),
         ),

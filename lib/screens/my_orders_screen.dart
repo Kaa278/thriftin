@@ -150,83 +150,19 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
   }
 
   Future<void> _showReviewDialog(Map<String, dynamic> order) async {
-    var rating = 5;
-    final commentController = TextEditingController();
-
-    await showDialog<void>(
+    final success = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Beri Ulasan'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: List.generate(
-                      5,
-                      (index) => IconButton(
-                        icon: Icon(
-                          index < rating
-                              ? Icons.star_rounded
-                              : Icons.star_border_rounded,
-                          color: const Color(0xFFF59E0B),
-                        ),
-                        onPressed: () =>
-                            setDialogState(() => rating = index + 1),
-                      ),
-                    ),
-                  ),
-                  TextField(
-                    controller: commentController,
-                    minLines: 3,
-                    maxLines: 5,
-                    decoration: const InputDecoration(
-                      hintText: 'Ceritakan pengalamanmu...',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Batal'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    final reviewerId = UserService.currentUserId;
-                    if (reviewerId == null) return;
-
-                    await ReviewService().addReview(
-                      productId: order['product_id'] as int,
-                      orderId: order['id'] as int,
-                      reviewerId: reviewerId,
-                      sellerId: order['seller_id'] as int,
-                      rating: rating,
-                      comment: commentController.text.trim(),
-                    );
-
-                    if (!context.mounted) return;
-                    Navigator.pop(context);
-                    _showCustomSnackbar(
-                      'Ulasan berhasil disimpan',
-                      AppColors.success,
-                    );
-                    _loadOrders();
-                  },
-                  child: const Text('Kirim'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (context) => _ReviewDialog(order: order),
     );
 
-    commentController.dispose();
+    if (success == true) {
+      _showCustomSnackbar(
+        'Ulasan berhasil disimpan',
+        AppColors.success,
+      );
+      await _markOrderAsOpened(order);
+      _loadOrders();
+    }
   }
 
   Future<void> _completeOrderAndReview(Map<String, dynamic> order) async {
@@ -432,57 +368,54 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
           ],
         ),
         centerTitle: false,
-      ),
-      body: Column(
-        children: [
-          // Tab bar container
-          Container(
-            color: AppColors.background,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(36),
+          child: Align(
+            alignment: Alignment.centerLeft,
             child: TabBar(
               controller: _tabController,
-              isScrollable: true,
+              isScrollable: false,
+              padding: EdgeInsets.zero,
+              labelPadding: const EdgeInsets.symmetric(horizontal: 4),
               indicatorColor: AppColors.primary,
               indicatorWeight: 2.5,
               labelColor: AppColors.primary,
               unselectedLabelColor: AppColors.textSecondary,
               labelStyle: const TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
               unselectedLabelStyle: const TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w400,
               ),
               tabs: tabs.map((t) => Tab(text: t)).toList(),
             ),
           ),
-
-          Expanded(
-            child: RefreshIndicator(
-              color: AppColors.primary,
-              onRefresh: () => _loadOrders(forceRefresh: true),
-              child: _isLoading
-                  ? SkeletonLoaders.list()
-                  : TabBarView(
-                      controller: _tabController,
-                      children: tabs.map((t) {
-                        final filtered = _getFilteredOrders(t);
-                        if (filtered.isEmpty) {
-                          return _buildEmptyState(t);
-                        }
-                        return ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: filtered.length,
-                          itemBuilder: (context, index) {
-                            final order = filtered[index];
-                            return _buildOrderCard(order);
-                          },
-                        );
-                      }).toList(),
-                    ),
-            ),
-          ),
-        ],
+        ),
+      ),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () => _loadOrders(forceRefresh: true),
+        child: _isLoading
+            ? SkeletonLoaders.list()
+            : TabBarView(
+                controller: _tabController,
+                children: tabs.map((t) {
+                  final filtered = _getFilteredOrders(t);
+                  if (filtered.isEmpty) {
+                    return _buildEmptyState(t);
+                  }
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final order = filtered[index];
+                      return _buildOrderCard(order);
+                    },
+                  );
+                }).toList(),
+              ),
       ),
     );
   }
@@ -1039,6 +972,132 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ReviewDialog extends StatefulWidget {
+  final Map<String, dynamic> order;
+
+  const _ReviewDialog({required this.order});
+
+  @override
+  State<_ReviewDialog> createState() => _ReviewDialogState();
+}
+
+class _ReviewDialogState extends State<_ReviewDialog> {
+  int _rating = 5;
+  late final TextEditingController _commentController;
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _commentController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Beri Ulasan'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: List.generate(
+              5,
+              (index) => IconButton(
+                icon: Icon(
+                  index < _rating ? Icons.star_rounded : Icons.star_border_rounded,
+                  color: const Color(0xFFF59E0B),
+                ),
+                onPressed: _isSubmitting
+                    ? null
+                    : () => setState(() => _rating = index + 1),
+              ),
+            ),
+          ),
+          TextField(
+            controller: _commentController,
+            enabled: !_isSubmitting,
+            minLines: 3,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              hintText: 'Ceritakan pengalamanmu...',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        ElevatedButton(
+          onPressed: _isSubmitting
+              ? null
+              : () async {
+                  final reviewerId = UserService.currentUserId;
+                  if (reviewerId == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Silakan login terlebih dahulu')),
+                    );
+                    return;
+                  }
+
+                  final pId = int.tryParse(widget.order['product_id']?.toString() ?? '');
+                  final oId = int.tryParse(widget.order['id']?.toString() ?? '');
+                  final sId = int.tryParse(widget.order['seller_id']?.toString() ?? '');
+
+                  if (pId == null || oId == null || sId == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Data pesanan tidak valid untuk ulasan')),
+                    );
+                    return;
+                  }
+
+                  setState(() => _isSubmitting = true);
+
+                  try {
+                    await ReviewService().addReview(
+                      productId: pId,
+                      orderId: oId,
+                      reviewerId: reviewerId,
+                      sellerId: sId,
+                      rating: _rating,
+                      comment: _commentController.text.trim(),
+                    );
+
+                    if (!context.mounted) return;
+                    Navigator.pop(context, true);
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    setState(() => _isSubmitting = false);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Gagal mengirim ulasan: $e')),
+                    );
+                  }
+                },
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Text('Kirim'),
+        ),
+      ],
     );
   }
 }

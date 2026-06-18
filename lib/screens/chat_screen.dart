@@ -533,6 +533,16 @@ class _ChatScreenState extends State<ChatScreen> {
                       final isMine =
                           msg['sender_id'] == UserService.currentUserId;
                       final offerAmount = msg['offer_amount'];
+
+                      // Check if this is the last message sent by me and it is read
+                      bool showReadStatus = false;
+                      if (isMine && (msg['is_read'] == 1 || msg['is_read'] == true)) {
+                        final lastSentIndex = _messages.lastIndexWhere(
+                          (m) => m['sender_id'] == UserService.currentUserId,
+                        );
+                        showReadStatus = lastSentIndex == index;
+                      }
+
                       Widget messageWidget;
                       if (offerAmount != null) {
                         messageWidget = _buildOfferCard(
@@ -549,12 +559,14 @@ class _ChatScreenState extends State<ChatScreen> {
                             imageUrl,
                             !isMine,
                             _formatTime(msg['created_at']),
+                            showReadStatus: showReadStatus,
                           );
                         } else {
                           messageWidget = _buildBubble(
                             messageText,
                             !isMine,
                             _formatTime(msg['created_at']),
+                            showReadStatus: showReadStatus,
                           );
                         }
                       }
@@ -864,7 +876,12 @@ class _ChatScreenState extends State<ChatScreen> {
     return trimmed.isEmpty ? 'Pesan' : trimmed;
   }
 
-  Widget _buildBubble(String text, bool isSeller, String time) {
+  Widget _buildBubble(
+    String text,
+    bool isSeller,
+    String time, {
+    bool showReadStatus = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -911,12 +928,28 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  time,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.textHint,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      time,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textHint,
+                      ),
+                    ),
+                    if (showReadStatus) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '•  Dilihat',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppColors.primary.withValues(alpha: 0.8),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -926,7 +959,12 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildImageBubble(String imageUrl, bool isSeller, String time) {
+  Widget _buildImageBubble(
+    String imageUrl,
+    bool isSeller,
+    String time, {
+    bool showReadStatus = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -956,12 +994,28 @@ class _ChatScreenState extends State<ChatScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  time,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.textHint,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      time,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textHint,
+                      ),
+                    ),
+                    if (showReadStatus) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '•  Dilihat',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppColors.primary.withValues(alpha: 0.8),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
