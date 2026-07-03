@@ -161,7 +161,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
               Text(
                 'Temukan harta karun favorit Anda berikutnya',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   color: AppColors.textSecondary,
                   height: 1.4,
                 ),
