@@ -1,7 +1,4 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_colors.dart';
 import '../services/app_prefetch_service.dart';
 import '../services/user_service.dart';
@@ -16,104 +13,25 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
+class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _userService = UserService();
-  StreamSubscription<AuthState>? _authSubscription;
   bool _obscurePassword = true;
   bool _isLoggingIn = false;
-  bool _isOpeningGoogle = false;
-  bool _isCompletingGoogle = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
-      data,
-    ) {
-      if (data.session != null) {
-        _finishGoogleSignIn();
-      }
-    });
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _authSubscription?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed &&
-        Supabase.instance.client.auth.currentSession != null) {
-      _finishGoogleSignIn();
-    }
-  }
 
-  Future<void> _finishGoogleSignIn() async {
-    if (_isCompletingGoogle) return;
-
-    setState(() => _isCompletingGoogle = true);
-    final messenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
-
-    try {
-      final user = await _userService.syncSupabaseAuthUser().timeout(
-        const Duration(seconds: 10),
-      );
-      if (user == null) return;
-
-      if (!mounted) return;
-      navigator.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const MainScreen()),
-        (_) => false,
-      );
-      AppPrefetchService.instance.warmBackground();
-    } catch (error) {
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text('Login Google belum berhasil: $error')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isCompletingGoogle = false);
-      }
-    }
-  }
-
-  Future<void> _startGoogleSignIn() async {
-    if (_isOpeningGoogle || _isCompletingGoogle) return;
-
-    setState(() => _isOpeningGoogle = true);
-    final messenger = ScaffoldMessenger.of(context);
-
-    try {
-      final opened = await _userService.signInWithGoogle();
-      if (!opened && mounted) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Tidak bisa membuka login Google')),
-        );
-      }
-      if (Supabase.instance.client.auth.currentSession != null) {
-        await _finishGoogleSignIn();
-      }
-    } catch (error) {
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text('Login Google gagal: $error')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isOpeningGoogle = false);
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
