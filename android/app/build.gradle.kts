@@ -10,8 +10,8 @@ if (file("google-services.json").exists()) {
 }
 
 android {
-    namespace = "com.example.thrift_in"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "com.ti24a3.thriftin"
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -26,11 +26,11 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.thrift_in"
+        applicationId = "com.ti24a3.thriftin"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 33
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
