@@ -46,3 +46,8 @@ app.*.map.json
 
 # Local credentials
 service_account.json
+
+# Keystore and key.properties
+key.properties
+*.jks
+*.keystore
