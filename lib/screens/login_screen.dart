@@ -52,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   end: Alignment.bottomRight,
                 ).createShader(bounds),
                 child: const Text(
-                  'Thriftinn',
+                  'Thriftin',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
