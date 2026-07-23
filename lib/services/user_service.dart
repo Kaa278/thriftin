@@ -13,6 +13,7 @@ import 'supabase_config.dart';
 
 class UserService {
   static Map<String, dynamic>? currentUser;
+  static String? localPhotoOverride;
   static const googleWebClientId = String.fromEnvironment(
     'GOOGLE_WEB_CLIENT_ID',
     defaultValue:
@@ -308,12 +309,15 @@ class UserService {
   }) async {
     final data = <String, dynamic>{'bio': bio};
     if (photoPath != null) {
-      data['photo_path'] = photoPath.startsWith('http')
-          ? photoPath
-          : await uploadProfilePhoto(
-              userId: userId,
-              imageFile: File(photoPath),
-            );
+      if (!photoPath.startsWith('http')) {
+        localPhotoOverride = photoPath;
+        data['photo_path'] = await uploadProfilePhoto(
+          userId: userId,
+          imageFile: File(photoPath),
+        );
+      } else {
+        data['photo_path'] = photoPath;
+      }
     }
     if (phone != null) data['phone'] = phone;
     if (address != null) data['address'] = address;
@@ -401,6 +405,7 @@ class UserService {
           }),
     );
     currentUser = null;
+    localPhotoOverride = null;
     _userCache.clear();
     try {
       await SupabaseConfig.client.auth.signOut();

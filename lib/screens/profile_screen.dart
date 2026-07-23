@@ -500,7 +500,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
             child: UserAvatar(
               name: _userName,
-              photoPath: UserService.currentUser?['photo_path']?.toString(),
+              photoPath: UserService.localPhotoOverride ?? UserService.currentUser?['photo_path']?.toString(),
               radius: 37,
             ),
           ),

@@ -19,31 +19,52 @@ class UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final image = _imageProvider();
+    final path = photoPath?.trim();
+    
+    if (path == null || path.isEmpty) {
+      return _buildInitials();
+    }
+
+    if (path.startsWith('http')) {
+      return CachedNetworkImage(
+        imageUrl: path,
+        imageBuilder: (context, imageProvider) => CircleAvatar(
+          radius: radius,
+          backgroundColor: const Color(0xFFE8EEF4),
+          backgroundImage: imageProvider,
+        ),
+        placeholder: (context, url) => _buildInitials(),
+        errorWidget: (context, url, error) => _buildInitials(),
+      );
+    }
+
+    final file = File(path);
+    if (file.existsSync()) {
+      final fileImage = FileImage(file);
+      fileImage.evict(); // Force Flutter to read from disk again
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: const Color(0xFFE8EEF4),
+        backgroundImage: fileImage,
+      );
+    }
+
+    return _buildInitials();
+  }
+
+  Widget _buildInitials() {
     return CircleAvatar(
       radius: radius,
       backgroundColor: const Color(0xFFE8EEF4),
-      backgroundImage: image,
-      child: image == null
-          ? Text(
-              _initials,
-              style: TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w900,
-                fontSize: radius * 0.58,
-              ),
-            )
-          : null,
+      child: Text(
+        _initials,
+        style: TextStyle(
+          color: AppColors.primary,
+          fontWeight: FontWeight.w900,
+          fontSize: radius * 0.58,
+        ),
+      ),
     );
-  }
-
-  ImageProvider? _imageProvider() {
-    final path = photoPath?.trim();
-    if (path == null || path.isEmpty) return null;
-    if (path.startsWith('http')) return CachedNetworkImageProvider(path);
-    final file = File(path);
-    if (file.existsSync()) return FileImage(file);
-    return null;
   }
 
   String get _initials {
