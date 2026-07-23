@@ -22,7 +22,7 @@ class CartService {
         .from('cart_items')
         .select('quantity, created_at, products(*, product_images(*))')
         .eq('user_id', userId)
-        .order('created_at');
+        .order('created_at', ascending: false);
 
     final items = results.map((row) {
       final cartItem = Map<String, dynamic>.from(row as Map);
@@ -37,9 +37,8 @@ class CartService {
       };
     }).toList();
 
-    final cartItems = items.reversed.toList();
-    _cache[userId] = _CartCacheEntry(_cloneList(cartItems));
-    return _cloneList(cartItems);
+    _cache[userId] = _CartCacheEntry(_cloneList(items));
+    return _cloneList(items);
   }
 
   Future<void> addToCart(int productId, {int quantity = 1}) async {

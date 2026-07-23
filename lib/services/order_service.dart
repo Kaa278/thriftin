@@ -68,9 +68,9 @@ class OrderService {
           '*, products(name, imageUrl), seller:users!orders_seller_id_fkey(name)',
         )
         .eq('buyer_id', buyerId)
-        .order('id');
+        .order('id', ascending: false);
     final orders = await _withOpenedState(
-      _mapOrders(results, sellerKey: 'seller').reversed.toList(),
+      _mapOrders(results, sellerKey: 'seller'),
       buyerId,
       sellerMode: false,
     );
@@ -92,9 +92,9 @@ class OrderService {
           '*, products(name, imageUrl), buyer:users!orders_buyer_id_fkey(name)',
         )
         .eq('seller_id', sellerId)
-        .order('id');
+        .order('id', ascending: false);
     final orders = await _withOpenedState(
-      _mapOrders(results, buyerKey: 'buyer').reversed.toList(),
+      _mapOrders(results, buyerKey: 'buyer'),
       sellerId,
       sellerMode: true,
     );

@@ -46,6 +46,8 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoading = true;
   bool _isSendingImage = false;
   bool _isOtherUserOnline = false;
+  bool _isOtherUserTyping = false;
+  Timer? _typingDebounce;
   XFile? _selectedImage;
   RealtimeChannel? _roomRealtimeChannel;
   RealtimeChannel? _presenceChannel;
@@ -86,6 +88,21 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _prepareRoom();
+    _msgController.addListener(() {
+      if (_msgController.text.isNotEmpty) {
+        _sendTypingSignal();
+      }
+    });
+  }
+
+  void _sendTypingSignal() {
+    final roomId = ChatScreen.activeRoomId;
+    final currentUserId = UserService.currentUserId;
+    if (roomId == null || currentUserId == null) return;
+    _roomRealtimeChannel?.sendBroadcastMessage(
+      event: 'typing',
+      payload: {'user_id': currentUserId},
+    );
   }
 
   /// Get the other user's ID from the room data.
@@ -194,6 +211,20 @@ class _ChatScreenState extends State<ChatScreen> {
               if (!mounted) return;
               _applyRealtimeMessage(payload.newRecord, roomId);
               _markRoomAsReadSoon(roomId, currentUserId);
+            },
+          )
+          .onBroadcast(
+            event: 'typing',
+            callback: (payload) {
+              final typingUserId = int.tryParse(payload['user_id']?.toString() ?? '');
+              if (typingUserId != null && typingUserId != currentUserId) {
+                if (!mounted) return;
+                setState(() => _isOtherUserTyping = true);
+                _typingDebounce?.cancel();
+                _typingDebounce = Timer(const Duration(seconds: 3), () {
+                  if (mounted) setState(() => _isOtherUserTyping = false);
+                });
+              }
             },
           )
           .subscribe((status, error) {
@@ -322,6 +353,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _typingDebounce?.cancel();
     _markReadDebounce?.cancel();
     final roomId = int.tryParse(_room?['id']?.toString() ?? '');
     if (roomId != null && ChatScreen.activeRoomId == roomId) {
@@ -376,6 +408,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _markRoomAsReadSoon(int roomId, int currentUserId) {
+    _typingDebounce?.cancel();
     _markReadDebounce?.cancel();
     _markReadDebounce = Timer(const Duration(milliseconds: 350), () async {
       try {
@@ -579,10 +612,13 @@ class _ChatScreenState extends State<ChatScreen> {
                           msg['sender_id'] == UserService.currentUserId;
                       final offerAmount = msg['offer_amount'];
                       Widget messageWidget;
+                      final isRead = msg['is_read'] == 1 || msg['is_read'] == true;
                       if (offerAmount != null) {
                         messageWidget = _buildOfferCard(
                           _formatPrice(offerAmount),
                           _formatTime(msg['created_at']),
+                          isRead,
+                          !isMine,
                         );
                       } else {
                         final messageText = msg['message']?.toString() ?? '';
@@ -594,12 +630,14 @@ class _ChatScreenState extends State<ChatScreen> {
                             imageUrl,
                             !isMine,
                             _formatTime(msg['created_at']),
+                            isRead,
                           );
                         } else {
                           messageWidget = _buildBubble(
                             messageText,
                             !isMine,
                             _formatTime(msg['created_at']),
+                            isRead,
                           );
                         }
                       }
@@ -612,6 +650,21 @@ class _ChatScreenState extends State<ChatScreen> {
                     },
                   ),
           ),
+          if (_isOtherUserTyping)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'User sedang mengetik...',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                    color: AppColors.textHint,
+                  ),
+                ),
+              ),
+            ),
           // Input bar
           Container(
             padding: EdgeInsets.only(
@@ -909,7 +962,8 @@ class _ChatScreenState extends State<ChatScreen> {
     return trimmed.isEmpty ? 'Pesan' : trimmed;
   }
 
-  Widget _buildBubble(String text, bool isSeller, String time) {
+  Widget _buildBubble(String text, bool isSeller, String time, bool isRead) {
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -956,12 +1010,21 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  time,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.textHint,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      time,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textHint,
+                      ),
+                    ),
+                    if (!isSeller && isRead) ...[
+                      const SizedBox(width: 4),
+                      const Icon(Icons.done_all_rounded, size: 12, color: AppColors.primary),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -971,7 +1034,8 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildImageBubble(String imageUrl, bool isSeller, String time) {
+  Widget _buildImageBubble(String imageUrl, bool isSeller, String time, bool isRead) {
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -1001,12 +1065,21 @@ class _ChatScreenState extends State<ChatScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  time,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.textHint,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      time,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textHint,
+                      ),
+                    ),
+                    if (!isSeller && isRead) ...[
+                      const SizedBox(width: 4),
+                      const Icon(Icons.done_all_rounded, size: 12, color: AppColors.primary),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -1016,7 +1089,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildOfferCard(String amount, String time) {
+  Widget _buildOfferCard(String amount, String time, bool isRead, bool isSeller) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -1106,6 +1179,23 @@ class _ChatScreenState extends State<ChatScreen> {
                           child: const Text('Ubah'),
                         ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        time,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppColors.primary.withValues(alpha: 0.7),
+                        ),
+                      ),
+                      if (!isSeller && isRead) ...[
+                        const SizedBox(width: 4),
+                        const Icon(Icons.done_all_rounded, size: 12, color: AppColors.primary),
+                      ],
                     ],
                   ),
                 ],

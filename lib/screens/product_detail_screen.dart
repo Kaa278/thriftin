@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:async';
 import '../theme/app_colors.dart';
+import '../utils/currency_formatter.dart';
 import '../widgets/cached_product_image.dart';
 import '../widgets/user_avatar.dart';
 import '../services/bid_service.dart';
@@ -215,6 +217,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             TextField(
               controller: bidController,
               keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                CurrencyInputFormatter(),
+              ],
               decoration: InputDecoration(
                 prefixText: 'Rp ',
                 border: OutlineInputBorder(

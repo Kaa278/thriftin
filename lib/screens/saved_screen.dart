@@ -37,7 +37,7 @@ class _SavedScreenState extends State<SavedScreen>
       );
       if (!mounted) return;
       setState(() {
-        _favoriteProducts = favorites;
+        _favoriteProducts = favorites.reversed.toList();
         _isLoading = false;
       });
     } catch (_) {
@@ -91,7 +91,7 @@ class _SavedScreenState extends State<SavedScreen>
       return const Text(
         'Belum ada rating',
         style: TextStyle(
-          fontSize: 9.5,
+          fontSize: 10.5,
           color: AppColors.textHint,
           fontWeight: FontWeight.w700,
         ),
@@ -100,14 +100,14 @@ class _SavedScreenState extends State<SavedScreen>
 
     return Row(
       children: [
-        const Icon(Icons.star_rounded, size: 12, color: Color(0xFFFFB800)),
-        const SizedBox(width: 2),
+        const Icon(Icons.star_rounded, size: 13, color: Color(0xFFFFB800)),
+        const SizedBox(width: 3),
         Text(
           '${rating.toStringAsFixed(1)} ($reviewCount)',
           style: const TextStyle(
-            fontSize: 9.5,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
+            fontSize: 10.5,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
@@ -150,6 +150,17 @@ class _SavedScreenState extends State<SavedScreen>
         ),
         centerTitle: false,
         actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.filter_list_rounded,
+              color: AppColors.primary,
+            ),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Fitur filter Wishlist akan segera hadir')),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(
               Icons.notifications_none_rounded,
@@ -207,46 +218,50 @@ class _SavedScreenState extends State<SavedScreen>
     }
 
     if (items.isEmpty) {
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: SizedBox(
-              height: constraints.maxHeight,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.favorite_border_rounded,
-                      size: 64,
-                      color: AppColors.grey300,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Belum ada item tersimpan',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
+      return RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () => _loadFavorites(forceRefresh: true),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: constraints.maxHeight,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.favorite_border_rounded,
+                        size: 64,
+                        color: AppColors.grey300,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Tekan ikon ❤️ pada produk di Beranda\nuntuk menyimpannya di sini.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textHint,
-                        height: 1.5,
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Belum ada item tersimpan',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Tekan ikon ❤️ pada produk di Beranda\nuntuk menyimpannya di sini.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textHint,
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       );
     }
 
@@ -294,15 +309,17 @@ class _SavedScreenState extends State<SavedScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Gambar produk
-                  Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(13),
+                  Expanded(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(13),
+                          ),
+                          child: _buildSavedImage(item['imageUrl'] ?? ''),
                         ),
-                        child: _buildSavedImage(item['imageUrl'] ?? ''),
-                      ),
-                      // Badge
+                        // Badge
                       if (isLelang ||
                           (item['badge'] != null &&
                               (item['badge'] as String).isNotEmpty))
@@ -358,44 +375,41 @@ class _SavedScreenState extends State<SavedScreen>
                       ),
                     ],
                   ),
+                  ),
                   // Detail produk
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(6, 3, 6, 0),
-                    child: _buildRatingMeta(item),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(6, 1, 6, 0),
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
                     child: Text(
                       item['name'] ?? '',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 11.5,
-                        height: 1.1,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 14.5,
+                        height: 1.18,
+                        fontWeight: FontWeight.w900,
                         color: AppColors.textPrimary,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(6, 1, 6, 0),
+                    padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
                     child: Row(
                       children: [
                         const Icon(
-                          Icons.verified_rounded,
-                          color: AppColors.primary,
-                          size: 11,
+                          Icons.location_on_outlined,
+                          color: AppColors.textSecondary,
+                          size: 13,
                         ),
-                        const SizedBox(width: 2),
+                        const SizedBox(width: 3),
                         Expanded(
                           child: Text(
                             '${_text(item['storeName'] ?? item['store'], 'Toko')} · ${_text(item['location'], 'Surakarta')}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 9,
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -403,13 +417,21 @@ class _SavedScreenState extends State<SavedScreen>
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(6, 2, 6, 4),
+                    padding: const EdgeInsets.fromLTRB(10, 5, 10, 0),
+                    child: _buildRatingMeta(item),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 20),
                     child: Text(
                       _formatPrice(item['price']),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 16,
+                        height: 1.05,
                         fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary,
+                        color: AppColors.primary,
+                        letterSpacing: 0,
                       ),
                     ),
                   ),
@@ -431,9 +453,8 @@ class _SavedScreenState extends State<SavedScreen>
     if (imageUrl.startsWith('assets/')) {
       return Image.asset(
         imageUrl,
-        height: 125,
         width: double.infinity,
-        fit: BoxFit.contain,
+        fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return _buildSavedImagePlaceholder();
         },
@@ -442,16 +463,14 @@ class _SavedScreenState extends State<SavedScreen>
 
     return CachedProductImage(
       imageUrl: imageUrl,
-      height: 125,
       width: double.infinity,
-      fit: BoxFit.contain,
+      fit: BoxFit.cover,
       memCacheWidth: 420,
     );
   }
 
   Widget _buildSavedImagePlaceholder() {
     return Container(
-      height: 125,
       width: double.infinity,
       color: const Color(0xFFF4F7FB),
       child: const Icon(
