@@ -95,7 +95,13 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  DateTime _lastTypingTime = DateTime.fromMillisecondsSinceEpoch(0);
+
   void _sendTypingSignal() {
+    final now = DateTime.now();
+    if (now.difference(_lastTypingTime) < const Duration(seconds: 2)) return;
+    _lastTypingTime = now;
+
     final roomId = ChatScreen.activeRoomId;
     final currentUserId = UserService.currentUserId;
     if (roomId == null || currentUserId == null) return;

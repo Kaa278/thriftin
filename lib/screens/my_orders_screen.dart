@@ -228,7 +228,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
                         'Ulasan berhasil disimpan',
                         AppColors.success,
                       );
-                      _loadOrders();
+                      _loadOrders(forceRefresh: true);
                     } catch (e) {
                       if (!context.mounted) return;
                       _showCustomSnackbar('Gagal mengirim ulasan: $e', AppColors.error);
